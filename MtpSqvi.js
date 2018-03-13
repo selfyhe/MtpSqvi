@@ -286,13 +286,18 @@ function changeDataForSell(tp,account,order){
 		_G(tp.Name+"_LastSellPrice",order.AvgPrice);
 	}
 	
-	//如果当前持仓数量小于最小交量数量时，价格重置为0，方便短线操作
+	//如果当前持仓数量小于最小交量数量或最小持仓量时，指导买入价格重置为成交价和平均价的中间价，方便短线操作
 	var coinAmount = getAccountStocks(account); //从帐户中获取当前持仓信息
 	if(coinAmount <= tp.Args.MinStockAmount){
-		var newAvgPrive = parseFloat(((order.AvgPrice+avgPrice)/2).toFixed(tp.Args.PriceDecimalPlace));
-		Log(tp.Title,"交易对成功空仓持币，将指导买入价从原持仓均价",avgPrice,"调整为",newAvgPrive);
-		_G(tp.Name+"_AvgPrice",newAvgPrive);
+		var newAvgPrice = parseFloat(((order.AvgPrice+avgPrice)/2).toFixed(tp.Args.PriceDecimalPlace));
+		Log(tp.Title,"交易对成功空仓持币，将指导买入价从原持仓均价",avgPrice,"调整为",newAvgPrice);
+		_G(tp.Name+"_AvgPrice",newAvgPrice);
 		_G(tp.Name+"_LastBuyPrice",0);
+		_G(tp.Name+"_LastSellPrice",0);
+	}else if(coinAmount <= tp.Args.MinCoinLimit ){
+		var guideBuyPrice = parseFloat(((order.AvgPrice+avgPrice)/2).toFixed(tp.Args.PriceDecimalPlace));
+		Log(tp.Title,"交易对空仓至最小持币量，将指导买入价调整为",guideBuyPrice);
+		_G(tp.Name+"_LastBuyPrice",guideBuyPrice);
 		_G(tp.Name+"_LastSellPrice",0);
 	}
 	
@@ -395,7 +400,7 @@ function getTradePair(name){
 }
 
 //策略交互处理函数
-function commandProc(coinAmount){
+function commandProc(){
     var cmd=GetCommand();
 	if(cmd){
 		var cmds=cmd.split(":");
@@ -414,8 +419,8 @@ function commandProc(coinAmount){
 				return;
 			}
 			if(cmds[0] == "NewAvgPrice" && tp){
-				if(coinAmount > tp.Args.MinStockAmount && values[1] == 0){
-					Log(tp.Name,"当前有持仓币数，但没有尝试更新持仓价格为0，拒绝操作！！！");
+				if(values[1] == 0){
+					Log(tp.Name,"尝试更新持仓价格为0，拒绝操作！！！");
 				}else{
 					Log(tp.Name,"更新持仓价格为",values[1]);
 					tp.Args.NowCoinPrice = values[1];
@@ -424,8 +429,8 @@ function commandProc(coinAmount){
 					AccountTables = null;
 				}
 			}else if(cmds[0] == "GuideBuyPrice" && tp){
-				if(coinAmount > tp.Args.MinStockAmount && values[1] == 0){
-					Log(tp.Name,"当前有持仓币数，但不能设置价格为0的指导价格！！！");
+				if(values[1] == 0){
+					Log(tp.Name,"不能设置价格为0的指导买入价格！！！");
 				}else{
 					Log(tp.Name,"更新指导买入价格为",values[1]);
 					_G(tp.Name+"_LastBuyPrice",values[1]);
@@ -491,10 +496,6 @@ function onTick(tp) {
     var Ticker = GetTicker(tp);
 	var stockValue = parseFloat(((Account.Stocks+Account.FrozenStocks)*Ticker.Last).toFixed(tp.Args.PriceDecimalPlace));
 	if(debug) Log("账户余额", parseFloat(Account.Balance).toFixed(8), "，冻结余额", parseFloat(Account.FrozenBalance).toFixed(8), "，可用币数", parseFloat(Account.Stocks).toFixed(8), "，冻结币数", parseFloat(Account.FrozenStocks).toFixed(8) , "，当前持币价值", stockValue);
-	//处理持仓价格变量
-    var coinAmount = getAccountStocks(Account); //从帐户中获取当前持仓信息
-	//策略交互处理函数
-	commandProc(coinAmount);
 	
 	//检测上一个订单，成功就改状态，不成功就取消重新发
 	if(_G(tp.Name+"_LastOrderId") && _G(tp.Name+"_OperatingStatus") != OPERATE_STATUS_NONE){
@@ -517,6 +518,8 @@ function onTick(tp) {
 		avgPrice = tp.Args.NowCoinPrice;
 		_G(tp.Name+"_AvgPrice",avgPrice);
 	}
+	//处理持仓价格变量
+    var coinAmount = getAccountStocks(Account); //从帐户中获取当前持仓信息
 	if(coinAmount > tp.Args.MinStockAmount && avgPrice === 0){
 		Log(tp.Name+"交易对账户有持币，但是输入的均价为0，请确认参数！！ #FF0000");
 		return false;
@@ -580,7 +583,6 @@ function onTick(tp) {
 			}
 		}else{
 			if(debug) Log("当前持仓数量已经达到最大持仓量", tp.Args.MaxCoinLimit, "，不再买入，看机会卖出。");
-			_G("ToTheBiggest", true);
 		}
     } else if (crossNum > 0 && Ticker.Buy > baseSellPrice * (1 + tp.Args.SellPoint + tp.Args.SellFee)) {
 		opAmount = (coinAmount - tp.Args.MinCoinLimit) > tp.Args.OperateFineness? tp.Args.OperateFineness : _N((coinAmount - tp.Args.MinCoinLimit),tp.Args.StockDecimalPlace);
@@ -591,13 +593,7 @@ function onTick(tp) {
 			orderid = tp.Exchange.Sell(Ticker.Buy, opAmount);
 			Log(tp.Title+"交易对准备以",Ticker.Buy,"的价格卖出",opAmount,"个币。");
 		}else{
-			if(debug) Log("当前持仓数量小于最小持仓量", tp.Args.MinCoinLimit, "，不能卖出，看机会再买入。");
-
-			if(_G(tp.Name+"_ToTheBiggest")){
-				if(debug) Log("当前持仓数量已经达到最大持仓量后再次达到最小持仓量，这种情况下重置平均持仓价格，以使得之后有条件买入。");
-				_G(tp.Name+"_AvgPrice",Ticker.Buy);
-				_G(tp.Name+"_ToTheBiggest",false);
-			}
+			if(debug) Log("当前持仓数量小于最小持仓量", tp.Args.MinCoinLimit, "，没有币可卖，看机会再买入。");
 		}
     } else {
 		if (crossNum < 0 ){
@@ -702,6 +698,8 @@ function main() {
 	Log("开始执行主事务程序...");  
 	while (true) {
 		if(TradePairs.length){
+			//策略交互处理函数
+			commandProc();
 			//获取当前交易对
 			var tp = TradePairs[NowTradePairIndex];
 			if(_G(tp.Name+"_Debug") == "1") Log("开始操作",tp.Title,"交易对...");
