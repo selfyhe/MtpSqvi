@@ -575,9 +575,9 @@ function onTick(tp) {
 					if(debug) Log("当前市价", Ticker.Sell, " < 买入点", parseFloat((baseBuyPrice * (1 - tp.Args.SellPoint - tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace)), "，准备买入",opAmount,"个币。");
 				}
 				isOperated = true;
+				Log(tp.Title+"交易对准备以",Ticker.Sell,"的价格买入",opAmount,"个币。");
 				_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_BUY);
 				orderid = tp.Exchange.Buy(Ticker.Sell, opAmount);
-				Log(tp.Title+"交易对准备以",Ticker.Sell,"的价格买入",opAmount,"个币。");
 			}else{
 				if(debug) Log("当前有机会买入，但当前账户余额不足，已经不能再买进了。");
 			}
@@ -589,9 +589,9 @@ function onTick(tp) {
 		if(coinAmount > tp.Args.MinCoinLimit && opAmount > tp.Args.MinStockAmount){
 			if(debug) Log("当前市价", Ticker.Buy, " > 卖出点", parseFloat((baseSellPrice * (1 + tp.Args.SellPoint + tp.Args.SellFee)).toFixed(tp.Args.PriceDecimalPlace)), "，准备卖出",opAmount,"个币");
 			isOperated = true;
+			Log(tp.Title+"交易对准备以",Ticker.Buy,"的价格卖出",opAmount,"个币。");
 			_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_SELL);
 			orderid = tp.Exchange.Sell(Ticker.Buy, opAmount);
-			Log(tp.Title+"交易对准备以",Ticker.Buy,"的价格卖出",opAmount,"个币。");
 		}else{
 			if(debug) Log("当前持仓数量小于最小持仓量", tp.Args.MinCoinLimit, "，没有币可卖，看机会再买入。");
 		}
