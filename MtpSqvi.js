@@ -408,17 +408,19 @@ function commandProc(){
 		var tp;
 		if(cmds.length === 2){
 			values = cmds[1].split("|");
-			if(values.length === 2 && values[0].toUpperCase() != "ALL"){
-				tp = getTradePair(values[0]);
-				if(!tp){
-					Log("没有取到相应的交易对，请确认交易对名称的正确性，格式为交易所名_交易对名!。 #FF0000");
-					return;
+			if(values.length === 2){
+				if(values[0].toUpperCase() != "ALL"){
+					tp = getTradePair(values[0]);
+					if(!tp){
+						Log("没有取到相应的交易对，请确认交易对名称的正确性，格式为交易所名_交易对名!。 #FF0000");
+						return;
+					}
 				}
 			}else{
 				Log("提交的交互内容格式不正式，格式为_|_!。 #FF0000");
 				return;
 			}
-			if(cmds[0] == "NewAvgPrice" && tp){
+			if(cmds[0] == "NewAvgPrice"){
 				if(values[1] == 0){
 					Log(tp.Name,"尝试更新持仓价格为0，拒绝操作！！！");
 				}else{
@@ -428,7 +430,7 @@ function commandProc(){
 					ArgTables = null;
 					AccountTables = null;
 				}
-			}else if(cmds[0] == "GuideBuyPrice" && tp){
+			}else if(cmds[0] == "GuideBuyPrice"){
 				if(values[1] == 0){
 					Log(tp.Name,"不能设置价格为0的指导买入价格！！！");
 				}else{
@@ -436,39 +438,39 @@ function commandProc(){
 					_G(tp.Name+"_LastBuyPrice",values[1]);
 					AccountTables = null;
 				}
-			}else if(cmds[0] == "NewBuyPoint" && tp){
-				if(cmds[1] <= tp.Args.BuyFee){
-					Log(tp.Name,"输入的买入点数小于平台交易费，请确认参数是否正确！！！");
-				}else if(cmds[1] > 0.5){
-					Log(tp.Name,"输入的买入点数过大可能无法成交，请确认参数是否正确！！！");
+			}else if(cmds[0] == "NewBuyPoint"){
+				if(values[0].toUpperCase() == "ALL"){
+					for(var i=0;i<TradePairs.length;i++){
+						TradePairs[i].Args.BuyPoint = values[1];
+					}
+					Log("更新所有交易对买入点数为",values[1]," #FF0000");
 				}else{
-					if(values[0].toUpperCase() == "ALL"){
-						for(var i=0;i<TradePairs.length;i++){
-							TradePairs[i].Args.BuyPoint = values[1];
-						}
-						Log("更新所有交易对买入点数为",values[1]," #FF0000");
+					if(cmds[1] <= tp.Args.BuyFee){
+						Log(tp.Name,"输入的买入点数小于平台交易费，请确认参数是否正确！！！");
+					}else if(cmds[1] > 0.5){
+						Log(tp.Name,"输入的买入点数过大可能无法成交，请确认参数是否正确！！！");
 					}else{
 						Log(tp.Name,"更新买入点数为",values[1]);
 						tp.Args.BuyPoint = values[1];
 					}
-					ArgTables = null;
 				}
-			}else if(cmds[0] == "NewSellPoint" && tp){
-				if(cmds[1] <= tp.Args.SellFee){
-					Log(tp.Name,"输入的卖出点数小于平台交易费，请确认参数是否正确！！！");
+				ArgTables = null;
+			}else if(cmds[0] == "NewSellPoint"){
+				if(values[0].toUpperCase() == "ALL"){
+					for(var i=0;i<TradePairs.length;i++){
+						TradePairs[i].Args.SellPoint = values[1];
+					}
+					Log("更新所有交易对卖出点数为",values[1]," #FF0000");
 				}else{
-					if(values[0].toUpperCase() == "ALL"){
-						for(var i=0;i<TradePairs.length;i++){
-							TradePairs[i].Args.SellPoint = values[1];
-						}
-						Log("更新所有交易对卖出点数为",values[1]," #FF0000");
+					if(cmds[1] <= tp.Args.SellFee){
+						Log(tp.Name,"输入的卖出点数小于平台交易费，请确认参数是否正确！！！");
 					}else{
 						Log(tp.Name,"更新卖出点数为",values[1]);
 						tp.Args.SellPoint = values[1];
 					}
-					ArgTables = null;
 				}
-			}else if(cmds[0] == "Debug" && cmds[1].length>0){
+				ArgTables = null;
+			}else if(cmds[0] == "Debug"){
 				if(values[0].toUpperCase() == "ALL"){
 					for(var i=0;i<TradePairs.length;i++){
 						_G(tp.Name+"_Debug",values[1]);
