@@ -713,7 +713,13 @@ function main() {
 			tp.LastUpdate = _D();
 			showStatus(tp);
 			//控制轮询
-            NowTradePairIndex = NowTradePairIndex === TradePairs.length-1 ? 0 : NowTradePairIndex+1;
+			if(NowTradePairIndex === TradePairs.length-1){
+				NowTradePairIndex = 0;
+				//同时清除日志保留最后5000条，以缩减托管者上SqlLit3文件的大小
+				LogReset(5000);
+			}else{
+				NowTradePairIndex++;
+			}
             var interval = 60/TradePairs.length;
 			if(interval < 5) interval = 5;
             Sleep(interval * 1000);
