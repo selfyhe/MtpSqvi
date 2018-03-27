@@ -188,6 +188,7 @@ function parseArgsJson(json){
 function init(){
 	//重置日志
     LogReset();
+	SetErrorFilter("502:|503:|tcp|character|unexpected|network|timeout|WSARecv|Connect|GetAddr|no such|reset|http|received|EOF|reused");
 
 	Log("启动多交易对现货长线量化价值投资策略程序...");  
 
