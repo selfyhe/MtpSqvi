@@ -100,31 +100,31 @@ function checkArgs(tp){
 	var a = tp.Args;
 	//检测参数的填写
 	if(a.MaxCoinLimit === 0){
-		Log(tp.Name,"交易对参数：最大持仓量为0，必须填写此字段。");
+		Log(tp.Name,"交易对参数：最大持仓量为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.OperateFineness === 0){
-		Log(tp.Name,"交易对参数：买卖操作的粒度为0，必须填写此字段。");
+		Log(tp.Name,"交易对参数：买卖操作的粒度为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.BuyFee === 0 || a.SellFee === 0){
-		Log(tp.Name,"交易对参数：平台买卖手续费为0，必须填写此字段。");
+		Log(tp.Name,"交易对参数：平台买卖手续费为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.PriceDecimalPlace === 0 || a.StockDecimalPlace === 0){
-		Log(tp.Name,"交易对参数：交易对价格/数量小数位为0，必须填写此字段。");
+		Log(tp.Name,"交易对参数：交易对价格/数量小数位为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.MinStockAmount === 0){
-		Log(tp.Name,"交易对参数：限价单最小交易数量为0，必须填写此字段。");
+		Log(tp.Name,"交易对参数：限价单最小交易数量为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.BuyPoint === 0){
-		Log(tp.Name,"交易对参数：指导买入点为0，必须填写此字段。");
+		Log(tp.Name,"交易对参数：指导买入点为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.SellPoint === 0){
-		Log(tp.Name,"交易对参数：指导卖出点为0，必须填写此字段。");
+		Log(tp.Name,"交易对参数：指导卖出点为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	Log(tp.Title,"交易对接收参数如下：最大持仓量", a.MaxCoinLimit, "，买卖操作的粒度", a.OperateFineness, "，当前持仓平均价格/指导买入价格", a.NowCoinPrice, "，平台买卖手续费（", a.BuyFee, a.SellFee,"），交易对价格/数量小数位（", a.PriceDecimalPlace, a.StockDecimalPlace,"），限价单最小交易数量", a.MinStockAmount,"，指导买入点", a.BuyPoint,"，指导卖出点", a.SellPoint);
@@ -188,7 +188,7 @@ function parseArgsJson(json){
 function init(){
 	//重置日志
     LogReset();
-	SetErrorFilter("502:|503:|tcp|character|unexpected|network|timeout|WSARecv|Connect|GetAddr|no such|reset|http|received|EOF|reused");
+	SetErrorFilter("403:|502:|503:|Forbidden|tcp|character|unexpected|network|timeout|WSARecv|Connect|GetAddr|no such|reset|http|received|EOF|reused");
 
 	Log("启动多交易对现货长线量化价值投资策略程序...");  
 
@@ -284,7 +284,7 @@ function changeDataForSell(tp,account,order){
 	
 	//设置最后一次卖出价格
 	if(order.DealAmount>(order.Amount/2)){
-		_G(tp.Name+"_LastSellPrice",order.AvgPrice);
+		_G(tp.Name+"_LastSellPrice",parseFloat(order.AvgPrice));
 	}
 	
 	//如果当前持仓数量小于最小交量数量或最小持仓量时，指导买入价格重置为成交价和平均价的中间价，方便短线操作
@@ -350,7 +350,7 @@ function changeDataForBuy(tp,account,order){
 	
 	//设置最后一次买入价格,仅在买入量超过一半的情况下调整最后买入价格，没到一半继续买入
 	if(order.DealAmount>(order.Amount/2)){
-		_G(tp.Name+"_LastBuyPrice",order.AvgPrice);
+		_G(tp.Name+"_LastBuyPrice",parseFloat(order.AvgPrice));
 	}
 					
 	//判断是否更新了历史最低持仓价
@@ -670,7 +670,7 @@ function showStatus(nowtp){
 		for(var r=0;r<TradePairs.length;r++){
 			var tp = TradePairs[r];
 			var i = tp.TPInfo;
-			rows.push([tp.Title, parseFloat(i.Balance).toFixed(8), parseFloat(i.FrozenBalance).toFixed(8), parseFloat(i.Stocks).toFixed(8), parseFloat(i.FrozenStocks).toFixed(8), i.AvgPrice, i.CostTotal, 
+			rows.push([tp.Title, parseFloat(i.Balance).toFixed(8), parseFloat(i.FrozenBalance).toFixed(8), parseFloat((i.Stocks+0).toFixed(8)), parseFloat(i.FrozenStocks).toFixed(8), i.AvgPrice, i.CostTotal, 
 			i.TickerLast, i.StockValue,  parseFloat(i.LastBuyPrice).toFixed(tp.Args.PriceDecimalPlace),  parseFloat(i.LastSellPrice).toFixed(tp.Args.PriceDecimalPlace)]);
 		}
 		accounttable2.rows = rows;
@@ -688,7 +688,7 @@ function showStatus(nowtp){
 		for(var r=0;r<accounttable2.rows.length;r++){
 			if(nowtp.Title == accounttable2.rows[r][0]){
 				var i = nowtp.TPInfo;
-				accounttable2.rows[r] =[nowtp.Title, parseFloat(i.Balance).toFixed(8), parseFloat(i.FrozenBalance).toFixed(8), parseFloat(i.Stocks).toFixed(8), parseFloat(i.FrozenStocks).toFixed(8), i.AvgPrice, i.CostTotal, 
+				accounttable2.rows[r] =[nowtp.Title, parseFloat(i.Balance).toFixed(8), parseFloat(i.FrozenBalance).toFixed(8), parseFloat((i.Stocks+0).toFixed(8)), parseFloat(i.FrozenStocks).toFixed(8), i.AvgPrice, i.CostTotal, 
 			i.TickerLast, i.StockValue,  parseFloat(i.LastBuyPrice).toFixed(nowtp.Args.PriceDecimalPlace), parseFloat(i.LastSellPrice).toFixed(nowtp.Args.PriceDecimalPlace)];
 				break;
 			}	
