@@ -426,8 +426,8 @@ function commandProc(){
 					Log(tp.Name,"尝试更新持仓价格为0，拒绝操作！！！");
 				}else{
 					Log(tp.Name,"更新持仓价格为",values[1]);
-					tp.Args.NowCoinPrice = values[1];
-					_G(tp.Name+"_AvgPrice",values[1]);
+					tp.Args.NowCoinPrice = parseFloat(values[1]);
+					_G(tp.Name+"_AvgPrice",parseFloat(values[1]));
 					ArgTables = null;
 					AccountTables = null;
 				}
@@ -436,13 +436,13 @@ function commandProc(){
 					Log(tp.Name,"不能设置价格为0的指导买入价格！！！");
 				}else{
 					Log(tp.Name,"更新指导买入价格为",values[1]);
-					_G(tp.Name+"_LastBuyPrice",values[1]);
+					_G(tp.Name+"_LastBuyPrice",parseFloat(values[1]));
 					AccountTables = null;
 				}
 			}else if(cmds[0] == "NewBuyPoint"){
 				if(values[0].toUpperCase() == "ALL"){
 					for(var i=0;i<TradePairs.length;i++){
-						TradePairs[i].Args.BuyPoint = values[1];
+						TradePairs[i].Args.BuyPoint = parseFloat(values[1]);
 					}
 					Log("更新所有交易对买入点数为",values[1]," #FF0000");
 				}else{
@@ -452,14 +452,14 @@ function commandProc(){
 						Log(tp.Name,"输入的买入点数过大可能无法成交，请确认参数是否正确！！！");
 					}else{
 						Log(tp.Name,"更新买入点数为",values[1]);
-						tp.Args.BuyPoint = values[1];
+						tp.Args.BuyPoint = parseFloat(values[1]);
 					}
 				}
 				ArgTables = null;
 			}else if(cmds[0] == "NewSellPoint"){
 				if(values[0].toUpperCase() == "ALL"){
 					for(var i=0;i<TradePairs.length;i++){
-						TradePairs[i].Args.SellPoint = values[1];
+						TradePairs[i].Args.SellPoint = parseFloat(values[1]);
 					}
 					Log("更新所有交易对卖出点数为",values[1]," #FF0000");
 				}else{
@@ -467,19 +467,19 @@ function commandProc(){
 						Log(tp.Name,"输入的卖出点数小于平台交易费，请确认参数是否正确！！！");
 					}else{
 						Log(tp.Name,"更新卖出点数为",values[1]);
-						tp.Args.SellPoint = values[1];
+						tp.Args.SellPoint = parseFloat(values[1]);
 					}
 				}
 				ArgTables = null;
 			}else if(cmds[0] == "Debug"){
 				if(values[0].toUpperCase() == "ALL"){
 					for(var i=0;i<TradePairs.length;i++){
-						_G(tp.Name+"_Debug",values[1]);
+						_G(tp.Name+"_Debug",parseInt(values[1]));
 					}
 					Log("更新所有交易对调试状态为",values[1]," #FF0000");
 				}else{
 					if(tp){
-						_G(tp.Name+"_Debug",values[1]);
+						_G(tp.Name+"_Debug",parseInt(values[1]));
 						Log("更新",tp.Name,"交易对调试状态为",values[1]," #FF0000");
 					}
 				}
@@ -723,6 +723,7 @@ function main() {
 			}
             var interval = 60/TradePairs.length;
 			if(interval < 5) interval = 5;
+			if(interval > 20) interval = 20;
             Sleep(interval * 1000);
 		}else{
 			Log("匹配的交易对为空，请提供正常的交易对参数JSON内容。");
