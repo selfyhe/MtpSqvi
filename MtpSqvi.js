@@ -172,6 +172,7 @@ function parseArgsJson(json){
 					if(!_G(tp.Name+"_SubProfit")) _G(tp.Name+"_SubProfit",0);
 					if(!_G(tp.Name+"_LastOrderId")) _G(tp.Name+"_LastOrderId",0);
 					if(!_G(tp.Name+"_OperatingStatus")) _G(tp.Name+"_OperatingStatus",OPERATE_STATUS_NONE);
+					if(!_G(tp.Name+"_BeforeBuyingStocks")) _G(tp.Name+"_BeforeBuyingStocks",0);	//买入前的币数量
 					if(!_G(tp.Name+"_AddTime")) _G(tp.Name+"_AddTime",_D());
 					_G(tp.Name+"_Debug",args[i].Debug);
 					ret = true;
@@ -333,10 +334,10 @@ function checkSellFinish(tp,account){
 function changeDataForBuy(tp,account,order){
 	//读取原来的持仓均价和持币总量
 	var avgPrice = _G(tp.Name+"_AvgPrice");
-	var coinAmount = getAccountStocks(account);
-	
+	var beforeBuyingStocks = _G(tp.Name+"_BeforeBuyingStocks");
+	var coinAmount = beforeBuyingStocks + order.DealAmount*(1-tp.Args.BuyFee);
 	//计算持仓总价
-	var Total = parseFloat((avgPrice*(coinAmount-order.DealAmount*(1-tp.Args.BuyFee))+order.AvgPrice * order.DealAmount).toFixed(tp.Args.PriceDecimalPlace));
+	var Total = parseFloat((avgPrice*beforeBuyingStocks+order.AvgPrice * order.DealAmount).toFixed(tp.Args.PriceDecimalPlace));
 	
 	//计算并调整平均价格
 	avgPrice = parseFloat((Total / coinAmount).toFixed(tp.Args.PriceDecimalPlace));
@@ -609,6 +610,7 @@ function onTick(tp) {
 	if(isOperated){
 		if (orderid) {
 			_G(tp.Name+"_LastOrderId",orderid);
+			_G(tp.Name+"_BeforeBuyingStocks",coinAmount);
 			if(debug) Log("订单发送成功，订单编号：",orderid);
 		}else{
 			_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_NONE);
