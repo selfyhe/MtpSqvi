@@ -296,11 +296,14 @@ function changeDataForSell(tp,account,order){
 		_G(tp.Name+"_AvgPrice",newAvgPrice);
 		_G(tp.Name+"_LastBuyPrice",0);
 		_G(tp.Name+"_LastSellPrice",0);
-	}else if(coinAmount <= tp.Args.MinCoinLimit ){
+	}else if(coinAmount <= tp.Args.MinCoinLimit+tp.Args.MinStockAmount*2 ){
 		var guideBuyPrice = parseFloat(((order.AvgPrice+avgPrice)/2).toFixed(tp.Args.PriceDecimalPlace));
 		Log(tp.Title,"交易对空仓至最小持币量，将指导买入价调整为",guideBuyPrice);
 		_G(tp.Name+"_LastBuyPrice",guideBuyPrice);
 		_G(tp.Name+"_LastSellPrice",0);
+	}else{
+		//卖出成功，重置上一次买入价格，以方便下跌补仓
+		_G(tp.Name+"_LastBuyPrice",0);
 	}
 	
 	//列新交易次数
@@ -365,7 +368,9 @@ function changeDataForBuy(tp,account,order){
 	var tradeTimes = _G(tp.Name+"_BuyTimes");
 	tradeTimes++;
 	_G(tp.Name+"_BuyTimes",tradeTimes);
-
+	
+	//每次买入一次重置上一次卖出价格，方便以新的成本价计算下次卖出价
+	_G(tp.Name+"_LastSellPrice",0);
 }
 
 //检测买入订单是否成功
@@ -562,7 +567,7 @@ function onTick(tp) {
     var baseBuyPrice = lastBuyPrice ? lastBuyPrice : avgPrice;
     var baseSellPrice = lastSellPrice ? lastSellPrice : avgPrice;
     if(debug) Log("当前基准买入价格=", baseBuyPrice, "，当前基准卖出价格=", baseSellPrice, "，买入点", tp.Args.BuyPoint, "，当前币价", Ticker.Sell);
-    if (crossNum < 0 && (baseBuyPrice ===0 || Ticker.Sell < baseBuyPrice * (1 - tp.Args.BuyPoint - tp.Args.BuyFee))) {
+    if (crossNum < 0 && (avgPrice === 0 || Ticker.Sell < baseBuyPrice * (1 - tp.Args.BuyPoint - tp.Args.BuyFee))) {
 		if(coinAmount <= tp.Args.MaxCoinLimit){
 			//判断当前余额下可买入数量
 			var canpay = (tp.Args.MaxCoinLimit - coinAmount) * Ticker.Sell;
@@ -570,7 +575,8 @@ function onTick(tp) {
 				canpay = Account.Balance;
 			}
 			var canbuy = canpay/Ticker.Sell;
-			opAmount = canbuy > tp.Args.OperateFineness? tp.Args.OperateFineness : canbuy;
+			var operatefineness = tp.Args.OperateFineness*(1+(avgPrice-Ticker.Sell)/avgPrice*2);
+			opAmount = canbuy > operatefineness? operatefineness : canbuy;
 			opAmount = _N(opAmount, tp.Args.StockDecimalPlace);
 			if(opAmount > tp.Args.MinStockAmount){
 				if(coinAmount <= tp.Args.MinStockAmount || baseBuyPrice === 0){
