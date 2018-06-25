@@ -62,6 +62,8 @@ var StartTime = _D();	//策略启动时间
 var TickTimes = 0;		//刷新次数
 var ArgTables;		//已经处理好的用于显示的参数表，当参数更新时置空重新生成，以加快刷新速度
 var AccountTables;	//当前的账户信息表，如果当前已经有表，只要更新当前交易对，这样可以加快刷新速度，减少内存使用
+var AddPointInBuy = 0.01;	//买入价格动态点增加数
+var AddPointInSell = 0.005;	//卖出价格动态点增加数
 
 //取得交易所对像
 function getExchange(name){
@@ -313,7 +315,7 @@ function changeDataForSell(tp,account,order){
 	
 	//调整动态点数
 	var sellDynamicPoint = _G(tp.Name+"_SellDynamicPoint") ? _G(tp.Name+"_SellDynamicPoint") : tp.Args.SellPoint;
-	_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint+0.005);
+	_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint+AddPointInSell);
 	var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint") ? _G(tp.Name+"_BuyDynamicPoint") : tp.Args.BuyPoint;
 	if(buyDynamicPoint != tp.Args.BuyPoint) _G(tp.Name+"_BuyDynamicPoint", tp.Args.BuyPoint);
 }
@@ -383,7 +385,7 @@ function changeDataForBuy(tp,account,order){
 	
 	//调整动态点数
 	var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint") ? _G(tp.Name+"_BuyDynamicPoint") : tp.Args.BuyPoint;
-	_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint+0.01);
+	_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint+AddPointInBuy);
 	var sellDynamicPoint = _G(tp.Name+"_SellDynamicPoint") ? _G(tp.Name+"_SellDynamicPoint") : tp.Args.SellPoint;
 	if(sellDynamicPoint != tp.Args.SellPoint) _G(tp.Name+"_SellDynamicPoint", tp.Args.SellPoint);
 }
@@ -577,7 +579,7 @@ function onTick(tp) {
 	tp.TPInfo = tpInfo; 
 
 	//获取行情数据
-    var crossNum = Cross(tp, 5, 15);
+    var crossNum = Cross(tp, 7, 21);
     if (crossNum > 0) {
         if(debug) Log("当前交叉数为", crossNum, ",处于上升通道");
     } else {
@@ -586,7 +588,7 @@ function onTick(tp) {
     var baseBuyPrice = lastBuyPrice ? lastBuyPrice : avgPrice;
     var baseSellPrice = lastSellPrice ? lastSellPrice : avgPrice;
     if(debug) Log("当前基准买入价格=", baseBuyPrice, "，当前基准卖出价格=", baseSellPrice, "，买入点", tp.Args.BuyPoint, "，当前币价", Ticker.Sell);
-    if (crossNum < 0 && (avgPrice === 0 || Ticker.Sell < baseBuyPrice * (1 - buyDynamicPoint - tp.Args.BuyFee))) {
+    if (crossNum < 0 && (baseBuyPrice === 0 || Ticker.Sell < baseBuyPrice * (1 - buyDynamicPoint - tp.Args.BuyFee))) {
 		if(coinAmount <= tp.Args.MaxCoinLimit){
 			//判断当前余额下可买入数量
 			var canpay = (tp.Args.MaxCoinLimit - coinAmount) * Ticker.Sell;
@@ -594,7 +596,7 @@ function onTick(tp) {
 				canpay = Account.Balance;
 			}
 			var canbuy = canpay/Ticker.Sell;
-			var operatefineness = tp.Args.OperateFineness*(1+(avgPrice-Ticker.Sell)/avgPrice*buyDynamicPoint*100);
+			var operatefineness = buyDynamicPoint == tp.Args.BuyPoint ? tp.Args.OperateFineness : tp.Args.OperateFineness*(1+(avgPrice-Ticker.Sell)/avgPrice*buyDynamicPoint*100);
 			opAmount = canbuy > operatefineness? operatefineness : canbuy;
 			opAmount = _N(opAmount, tp.Args.StockDecimalPlace);
 			if(opAmount > tp.Args.MinStockAmount){
@@ -615,7 +617,7 @@ function onTick(tp) {
 			if(debug) Log("当前持仓数量已经达到最大持仓量", tp.Args.MaxCoinLimit, "，不再买入，看机会卖出。");
 		}
     } else if (crossNum > 0 && Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee)) {
-		var operatefineness = tp.Args.OperateFineness*(1+(Ticker.Buy-avgPrice)/avgPrice);
+		var operatefineness = sellDynamicPoint == tp.Args.SellPoint ? tp.Args.OperateFineness : tp.Args.OperateFineness*(1+(Ticker.Buy-avgPrice)/avgPrice);
 		opAmount = (coinAmount - tp.Args.MinCoinLimit) > operatefineness? operatefineness : _N((coinAmount - tp.Args.MinCoinLimit),tp.Args.StockDecimalPlace);
 		if(coinAmount > tp.Args.MinCoinLimit && opAmount > tp.Args.MinStockAmount){
 			if(debug) Log("当前市价", Ticker.Buy, " > 卖出点", parseFloat((baseSellPrice * (1 + tp.Args.SellPoint + tp.Args.SellFee)).toFixed(tp.Args.PriceDecimalPlace)), "，准备卖出",opAmount,"个币");
