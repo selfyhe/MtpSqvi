@@ -637,6 +637,12 @@ function onTick(tp) {
     			_G(tp.Name+"_LastBuyPrice", Ticker.Sell);
     			if(debug) Log("且当前持仓量小于可卖仓量（最后买入持仓量-最小持仓量）的40%和价格已经回落到了上次卖出价头寸的4成，调整买入指导价为当前价格，以方便可以在相对合理的价格就开始开仓补货。");
     		}
+    	}else if(lastBuyPrice > 0 && lastSellPrice == 0 && coinAmount<=tp.Args.MinCoinLimit+tp.Args.MinStockAmount){
+    		var goodbuyprice = (Ticker.Sell-avgPrice)/2+avgPrice;
+	    	if(goodbuyprice > lastBuyPrice){
+				_G(tp.Name+"_LastBuyPrice", goodbuyprice);
+				if(debug) Log("当前已经完成平仓，但币价继续上升，适当调整买入指导价以防止指导价过低无法买入。");
+	    	}
     	}
 		if (crossNum < 0 ){
 			if(debug) Log("价格没有下跌到买入点，继续观察行情...");
