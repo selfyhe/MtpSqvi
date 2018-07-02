@@ -1,18 +1,8 @@
 /**************************************
-多交易对现货长线量化价值投资策略V1.0
-说明：因为多个交易对收益合并到一个曲线，所以同一个机器人使用的基础货币要是一样的。
-1.设定一个币种最小持仓量和最大持仓量
-2.当行情处于下降通道，且市场价格低于当前持仓平均价格或上一次买入的价格时，买入设定的操作粒度，直到最大持仓量
-3.当行情处于上升通道，且市场价格高于当前持仓平均价格或上一次卖出的价格时，卖出设定的操作粒度，直到最小持仓量，当到达最小持仓量的时候，平均价格清0，使得程序可以重新买入新量。
-4.均线周期使用1小时均线，频率为1分钟。
-5.最小持仓量的币是用来增值的，最小持仓量到最大持仓量之间的币是用来获利的。可以定期根据盈利情况来调整这两个值，以加大持仓或减少
-6.本策略为价值投资策略，目的是可以在市场低迷的时候吃进持仓，市场行情好的时候出货套一定的现。
-  不追求短线高频交易，而是在一定时间内的大跌大涨中拥获价值投资的机会使得持仓平均价格不断的降低,并使得最小持仓量的币保持最低的价格，等币价升值。
-7.即然是价值投资，选币就很重要的，一定要选有投资价值的币种，不要是那种一跌不起的币
-8.本策略在大跌大涨行情中效果最好，涨跌互现或是跌得很深的情况下，只要子弹够多，那么可以拿到很多便宜的货，以前我们人为操作的时候，总是会出现
-  以为行情已经到底了，所以大举买入，但是谁知被套在一个相对高位了。此策略以每次操作的粒度进行限制，以使得每次不会全仓进入，这样可以有更多的
-  机会可以拿到更便宜的货。
-9.程序使用了机器人的本地存储，暂停和重启机器人不会影响保存的数据，但是如果新建机器人需要手动计算当前帐户的持仓均价并填入参数当中。
+多交易对现货长线量化价值投资策略V2.1
+说明：
+1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
+2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
 
 支持多个交易对，参数通过JSON传递过来
 Json	策略参数JSON内容	JSON内容为以下多个交易对的数组JSON	字符串型(string)
@@ -54,6 +44,16 @@ function TradePair(){
 	this.TPInfo = {};	//交易对当前信息
 	this.Args = {};	//本交易对参数
 	this.LastUpdate = {};	//最后更新时间
+	this.Ssst = {};		//短线交易操作对像
+}
+function SsstData(){
+	this.Exists = 0;	//是否存在短线交易
+	this.BuyPrice = 0;	//买入价
+	this.Amount = 0;	//交易量
+	this.SellPrice = 0;	//卖出价
+	this.OrderID = 0;	//订单编号
+	this.OrderTime = 0;	//持单时间戳
+	this.LastBuyPrice = 0;	//上次买入的价格
 }
 var TradePairs = [];	//所有交易对数组
 var NowTradePairIndex = 0;		//当前的交易所对索引
@@ -62,8 +62,8 @@ var StartTime = _D();	//策略启动时间
 var TickTimes = 0;		//刷新次数
 var ArgTables;		//已经处理好的用于显示的参数表，当参数更新时置空重新生成，以加快刷新速度
 var AccountTables;	//当前的账户信息表，如果当前已经有表，只要更新当前交易对，这样可以加快刷新速度，减少内存使用
-var AddPointInBuy = 0.01;	//买入价格动态点增加数
-var AddPointInSell = 0.005;	//卖出价格动态点增加数
+var AddPointInBuy = 0.003;	//买入价格动态点增加数
+var AddPointInSell = -0.005;	//卖出价格动态点增加数
 
 //取得交易所对像
 function getExchange(name){
@@ -271,7 +271,7 @@ function changeDataForSell(tp,account,order){
 	var avgPrice = _G(tp.Name+"_AvgPrice");
 	var TotalProfit = _G("TotalProfit");
 	var SubProfit = _G(tp.Name+"_SubProfit");
-	var profit = parseFloat((order.AvgPrice*order.DealAmount*(1-tp.Args.SellFee) - avgPrice*order.DealAmount*(1+tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace));
+	var profit = parseFloat((order.AvgPrice*order.DealAmount*(1-tp.Args.SellFee) - avgPrice*order.DealAmount).toFixed(tp.Args.PriceDecimalPlace));
 	SubProfit += profit;
 	TotalProfit += profit;
 	tp.Profit = SubProfit;
@@ -279,7 +279,7 @@ function changeDataForSell(tp,account,order){
 	_G("TotalProfit", TotalProfit);
 	LogProfit(TotalProfit);
 	
-	if(order.DealAmount === order.Amount ){
+	if(order.Status === ORDER_STATE_CLOSED ){
 		Log(tp.Title,"交易对订单",_G(tp.Name+"_LastOrderId"),"交易成功!平均卖出价格：",order.AvgPrice,"，平均持仓价格：",avgPrice,"，卖出数量：",order.DealAmount,"，毛收盈：",profit,"，累计毛收盈：",TotalProfit);
 	}else{
 		Log(tp.Title,"交易对订单",_G(tp.Name+"_LastOrderId"),"部分成交!卖出数量：",order.DealAmount,"，剩余数量：",order.Amount - order.DealAmount,"，平均卖出价格：",order.AvgPrice,"，平均持仓价格：",avgPrice,"，毛收盈：",profit,"，累计毛收盈：",TotalProfit);
@@ -292,13 +292,7 @@ function changeDataForSell(tp,account,order){
 	
 	//如果当前持仓数量小于最小交量数量或最小持仓量时，指导买入价格重置为成交价和平均价的中间价，方便短线操作
 	var coinAmount = getAccountStocks(account); //从帐户中获取当前持仓信息
-	if(coinAmount <= tp.Args.MinStockAmount){
-		var newAvgPrice = parseFloat(((order.AvgPrice+avgPrice)/2).toFixed(tp.Args.PriceDecimalPlace));
-		Log(tp.Title,"交易对成功空仓持币，将指导买入价从原持仓均价",avgPrice,"调整为",newAvgPrice);
-		_G(tp.Name+"_AvgPrice",newAvgPrice);
-		_G(tp.Name+"_LastBuyPrice",0);
-		_G(tp.Name+"_LastSellPrice",0);
-	}else if(coinAmount <= tp.Args.MinCoinLimit+tp.Args.MinStockAmount*2 ){
+	if(coinAmount <= tp.Args.MinCoinLimit+tp.Args.MinStockAmount*2 ){
 		var guideBuyPrice = parseFloat(((order.AvgPrice+avgPrice)/2).toFixed(tp.Args.PriceDecimalPlace));
 		Log(tp.Title,"交易对空仓至最小持币量，将指导买入价调整为",guideBuyPrice);
 		_G(tp.Name+"_LastBuyPrice",guideBuyPrice);
@@ -346,32 +340,114 @@ function changeDataForBuy(tp,account,order){
 	//读取原来的持仓均价和持币总量
 	var avgPrice = _G(tp.Name+"_AvgPrice");
 	var beforeBuyingStocks = _G(tp.Name+"_BeforeBuyingStocks");
-	var coinAmount = beforeBuyingStocks + order.DealAmount*(1-tp.Args.BuyFee);
-	//计算持仓总价
-	var Total = parseFloat((avgPrice*beforeBuyingStocks+order.AvgPrice * order.DealAmount).toFixed(tp.Args.PriceDecimalPlace));
-	
-	//计算并调整平均价格
-	avgPrice = parseFloat((Total / coinAmount).toFixed(tp.Args.PriceDecimalPlace));
-	_G(tp.Name+"_AvgPrice",avgPrice);
-	
-	if(order.DealAmount === order.Amount ){
-		Log(tp.Title,"交易对买入订单",_G(tp.Name+"_LastOrderId"),"交易成功!成交均价：",order.AvgPrice,"，数量：",order.DealAmount,"，持仓价格调整到：",avgPrice,"，总持仓数量：",coinAmount,"，总持币成本：",Total);			
+	if(order.Status === ORDER_STATE_CLOSED ){
+		Log(tp.Title,"交易对买入订单",_G(tp.Name+"_LastOrderId"),"交易成功!成交均价：",order.AvgPrice,"，挂单数量：",order.Amount,"，买到数量：",order.DealAmount);			
 	}else{
-		Log(tp.Title,"交易对买入订单",_G(tp.Name+"_LastOrderId"),"部分成交!成交均价：",order.AvgPrice,"，数量：",order.DealAmount,"，持仓价格调整到：",avgPrice,"，总持仓数量：",coinAmount,"，总持币成本：",Total);			
+		Log(tp.Title,"交易对买入订单",_G(tp.Name+"_LastOrderId"),"部分成交!成交均价：",order.AvgPrice,"，挂单数量：",order.Amount,"，买到数量：",order.DealAmount);		
+	}
+	
+	var flag = false;	
+	if(beforeBuyingStocks > tp.Args.MinCoinLimit+tp.Args.MinStockAmount){
+		//检测当前是否存在短线交易
+		if(tp.Ssst.Exists ){
+			//存在，检测当前交易是否完成,没有完成强制取消挂单
+			Log(tp.Title,"交易对先前存在短线交易挂单，现检测当前交易是否完成,没有完成强制取消挂单。");
+			var ret = checkSsstSellFinish(tp, true);
+			if(!ret){
+				//如果挂单还没有取消成功,再次尝试取消挂单
+				tp.Exchange.CancelOrder(tp.Ssst.OrderID);
+			}
+		}
+		//再次检测是否有未完成的挂单
+		if(tp.Ssst.Exists){
+			Log(tp.Title,"交易对先前的短线交易挂单未完成，现将其未完成的量",tp.Ssst.Amount,"按",tp.Ssst.BuyPrice,"买入计入长线核算。");
+			//有挂单没有完成，将挂单数量和金额计入持仓均价
+			var coinAmount = beforeBuyingStocks + tp.Ssst.Amount;
+			//计算持仓总价
+			var Total = parseFloat((avgPrice*beforeBuyingStocks + tp.Ssst.BuyPrice * tp.Ssst.Amount*(1+tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace));
+			
+			//计算并调整平均价格
+			avgPrice = parseFloat((Total / coinAmount).toFixed(tp.Args.PriceDecimalPlace));
+			_G(tp.Name+"_AvgPrice",avgPrice);
+			
+			Log(tp.Title,"交易对先前的短线交易挂单买入价：",tp.Ssst.BuyPrice,"，未卖出数量：",tp.Ssst.Amount,"，长线持仓价格调整到：",avgPrice,"，总持仓数量：",coinAmount,"，总持币成本：",Total);			
+			
+			//设置最后一次买入价格
+			_G(tp.Name+"_LastBuyPrice",parseFloat(tp.Ssst.BuyPrice));
+							
+			//每次买入一次重置上一次卖出价格，方便以新的成本价计算下次卖出价
+			_G(tp.Name+"_LastSellPrice",0);
+			
+			//保存每次买入之后币的数量
+			_G(tp.Name+"_lastBuycoinAmount", coinAmount);
+			
+			//调整动态点数
+			var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint") ? _G(tp.Name+"_BuyDynamicPoint") : tp.Args.BuyPoint;
+			_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint+AddPointInBuy);
+			var sellDynamicPoint = _G(tp.Name+"_SellDynamicPoint") ? _G(tp.Name+"_SellDynamicPoint") : tp.Args.SellPoint;
+			if(sellDynamicPoint != tp.Args.SellPoint) _G(tp.Name+"_SellDynamicPoint", tp.Args.SellPoint);
+			
+			//调整新的beforeBuyingStocks变量，以方便下面的计算
+			beforeBuyingStocks = coinAmount;
+		}
+		
+		//将当前买入作为短线卖单挂出
+		var newSsst = new SsstData();
+		newSsst.Exists = 1;
+		newSsst.BuyPrice = order.AvgPrice;
+		newSsst.Amount = order.DealAmount;
+		newSsst.SellPrice = parseFloat((order.AvgPrice*(1+0.01+tp.Args.BuyFee+tp.Args.SellFee)).toFixed(tp.Args.PriceDecimalPlace));
+		Log(tp.Title,"交易对计划对当前成功的买入量做短线卖出挂单。");
+		var orderid = tp.Exchange.Sell(newSsst.SellPrice, newSsst.Amount);
+		if(orderid){
+			//挂单成功
+			Log(tp.Title,"交易对将当前成功的买入量做卖出挂单成功，订单编号",orderid);
+			newSsst.OrderID = orderid;
+			newSsst.OrderTime = new Date().getTime();
+			newSsst.LastBuyPrice = _G(tp.Name+"_LastBuyPrice");
+			tp.Ssst = newSsst;
+			//保存挂单信息
+			_G(tp.Name+"_Ssst_Exists", 1);
+			_G(tp.Name+"_Ssst_BuyPrice", newSsst.BuyPrice);
+			_G(tp.Name+"_Ssst_Amount", newSsst.Amount);
+			_G(tp.Name+"_Ssst_SellPrice", newSsst.SellPrice);
+			_G(tp.Name+"_Ssst_OrderID", newSsst.OrderID);
+			_G(tp.Name+"_Ssst_OrderTime", newSsst.OrderTime);	
+			_G(tp.Name+"_Ssst_LastBuyPrice", newSsst.LastBuyPrice);	
+			
+			//做个延时处理
+			Sleep(5000);
+			//重新读取Account账户变动
+			account = GetAccount(tp);
+		}else{
+			Log(tp.Title,"交易对计划对当前买入做挂单，但挂单不成功，现将其按长线买入计入长线核算。");
+			//有挂单不成功，将数量和金额计入长线核算
+			flag = true;
+		}
+	}else{
+		//当前持仓量小于最小持仓量和最小交易量的总和，不作短线卖出挂单，直接计入长线核算
+		flag = true;
+	}
+	
+	//核算总持币量
+	var coinAmount = beforeBuyingStocks + order.DealAmount;
+	//是否对当前买入量计入长线核算
+	if(flag){
+		//计算持仓总价
+		var Total = parseFloat((avgPrice*beforeBuyingStocks+order.AvgPrice * order.DealAmount*(1+tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace));
+		
+		//计算并调整平均价格
+		avgPrice = parseFloat((Total / coinAmount).toFixed(tp.Args.PriceDecimalPlace));
+		_G(tp.Name+"_AvgPrice",avgPrice);
+		
+		Log(tp.Title,"交易对当前买入计入核算，长线持仓价格调整到：",avgPrice,"，总持仓数量：",coinAmount,"，总持币成本：",Total);			
 	}
 	
 	//设置最后一次买入价格,仅在买入量超过一半的情况下调整最后买入价格，没到一半继续买入
 	if(order.DealAmount>(order.Amount/2)){
 		_G(tp.Name+"_LastBuyPrice",parseFloat(order.AvgPrice));
 	}
-					
-	//判断是否更新了历史最低持仓价
-	var historyMinPrice = _G(tp.Name+"_HistoryMinPrice") ? _G(tp.Name+"_HistoryMinPrice") : 0;
-	if(avgPrice < historyMinPrice){
-		Log(tp.Title,"交易对当前持仓均价达到历史最低持仓均价",avgPrice,"，更新最低持仓均价。");
-		_G(tp.Name+"_HistoryMinPrice",avgPrice);
-	}
-	
+
 	//列新交易次数
 	var tradeTimes = _G(tp.Name+"_BuyTimes");
 	tradeTimes++;
@@ -379,6 +455,7 @@ function changeDataForBuy(tp,account,order){
 	
 	//每次买入一次重置上一次卖出价格，方便以新的成本价计算下次卖出价
 	_G(tp.Name+"_LastSellPrice",0);
+	_G(tp.Name+"_HistoryHighPoint", 0);
 	
 	//保存每次买入之后币的数量
 	_G(tp.Name+"_lastBuycoinAmount", coinAmount);
@@ -387,7 +464,7 @@ function changeDataForBuy(tp,account,order){
 	var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint") ? _G(tp.Name+"_BuyDynamicPoint") : tp.Args.BuyPoint;
 	_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint+AddPointInBuy);
 	var sellDynamicPoint = _G(tp.Name+"_SellDynamicPoint") ? _G(tp.Name+"_SellDynamicPoint") : tp.Args.SellPoint;
-	if(sellDynamicPoint != tp.Args.SellPoint) _G(tp.Name+"_SellDynamicPoint", tp.Args.SellPoint);
+	if(sellDynamicPoint != tp.Args.SellPoint) _G(tp.Name+"_SellDynamicPoint", tp.Args.SellPoint);	
 }
 
 //检测买入订单是否成功
@@ -514,14 +591,100 @@ function commandProc(){
 	}
 }
 
+//检测短线卖出订单是否成功
+function checkSsstSellFinish(tp, cancelorder){
+	var ret = false;
+	var order = tp.Exchange.GetOrder(tp.Ssst.OrderID);
+	if(order.Status === ORDER_STATE_CLOSED || order.Status === ORDER_STATE_PENDING && cancelorder && order.DealAmount){
+		//累计盈利
+		var TotalProfit = _G("TotalProfit");
+		var SubProfit = _G(tp.Name+"_SubProfit");
+		var profit = parseFloat((order.AvgPrice*order.DealAmount*(1-tp.Args.SellFee) - tp.Ssst.BuyPrice*order.DealAmount*(1+tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace));
+		SubProfit += profit;
+		TotalProfit += profit;
+		tp.Profit = SubProfit;
+		_G(tp.Name+"_SubProfit", SubProfit);
+		_G("TotalProfit", TotalProfit);
+		LogProfit(TotalProfit);
+
+		if(order.Status === ORDER_STATE_CLOSED){
+			Log(tp.Title,"交易对短线挂单",tp.Ssst.OrderID,"交易成功!卖出价格：",order.AvgPrice,"，买入价格：",tp.Ssst.BuyPrice,"，卖出数量：",order.DealAmount,"，毛收盈：",profit,"，累计毛收盈：",TotalProfit);
+		}else{
+			Log(tp.Title,"交易对短线挂单",tp.Ssst.OrderID,"部分成交!卖出数量：",order.DealAmount,"，剩余数量：",order.Amount - order.DealAmount,"，卖出价格：",order.AvgPrice,"，买入价格：",avgPrice,"，毛收盈：",profit,"，累计毛收盈：",TotalProfit);
+		}
+		
+		//列新交易次数
+		var tradeTimes = _G(tp.Name+"_SellTimes");
+		tradeTimes++;
+		_G(tp.Name+"_SellTimes",tradeTimes);
+		
+		//更新剩余数量到Ssst对像
+		if(order.Status === ORDER_STATE_PENDING && order.DealAmount){
+			tp.Ssst.Amount = order.Amount - order.DealAmount;
+			_G(tp.Name+"_Ssst_Amount", tp.Ssst.Amount);
+		}
+	}
+
+	if(order.Status === ORDER_STATE_CLOSED){
+		//挂单顺利卖出，恢复上次买入价格和动态买入点。
+		_G(tp.Name+"_LastBuyPrice", tp.Ssst.LastBuyPrice);
+		var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint");
+		_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint-AddPointInBuy);
+		//挂单已经完成，重置Ssst对像
+		tp.Ssst = new SsstData();
+		_G(tp.Name+"_Ssst_Exists", 0);
+		_G(tp.Name+"_Ssst_BuyPrice", 0);
+		_G(tp.Name+"_Ssst_Amount", 0);
+		_G(tp.Name+"_Ssst_SellPrice", 0);
+		_G(tp.Name+"_Ssst_OrderID", 0);
+		_G(tp.Name+"_Ssst_OrderTime", 0);
+		_G(tp.Name+"_Ssst_LastBuyPrice", 0);
+		ret = true;
+	}else{
+		//撤消没有完成的订单
+		if(cancelorder){
+			Log(tp.Title,"交易对取消未完成的短线交易挂单：",tp.Ssst.OrderID);			
+			var retc = tp.Exchange.CancelOrder(tp.Ssst.OrderID);
+			if(retc){
+				tp.Ssst.OrderID = 0;
+				tp.Ssst.OrderTime = 0;
+				_G(tp.Name+"_Ssst_OrderID", 0);
+				_G(tp.Name+"_Ssst_OrderTime", 0);
+				ret = true;
+			}
+		}
+	}
+	return ret;
+}
+
+//初始化Ssst对像
+function ssstHandle(tp){
+	//读取短线交易相关数据，并判断交易状态
+	var ssst = new SsstData();
+	if(_G(tp.Name+"_Ssst_Exists")){
+		ssst.Exists = 1;
+		ssst.BuyPrice = _G(tp.Name+"_Ssst_BuyPrice");
+		ssst.Amount = _G(tp.Name+"_Ssst_Amount");
+		ssst.SellPrice = _G(tp.Name+"_Ssst_SellPrice");
+		ssst.OrderID = _G(tp.Name+"_Ssst_OrderID");
+		ssst.OrderTime = _G(tp.Name+"_Ssst_OrderTime");
+		ssst.LastBuyPrice = _G(tp.Name+"_Ssst_LastBuyPrice");
+	}
+	tp.Ssst = ssst;
+
+	//检测卖出挂单是否成功
+    if(ssst.OrderID){
+    	checkSsstSellFinish(tp, false);
+    }
+
+}
+
 //定时任务，主业务流程 
 function onTick(tp) {
 	var debug = _G(tp.Name+"_Debug") == "1" ? true : false;
 	//获取实时信息
 	var Account = GetAccount(tp);
     var Ticker = GetTicker(tp);
-	var stockValue = parseFloat(((Account.Stocks+Account.FrozenStocks)*Ticker.Last).toFixed(tp.Args.PriceDecimalPlace));
-	if(debug) Log("账户余额", parseFloat(Account.Balance).toFixed(8), "，冻结余额", parseFloat(Account.FrozenBalance).toFixed(8), "，可用币数", parseFloat(Account.Stocks).toFixed(8), "，冻结币数", parseFloat(Account.FrozenStocks).toFixed(8) , "，当前持币价值", stockValue);
 	
 	//检测上一个订单，成功就改状态，不成功就取消重新发
 	if(_G(tp.Name+"_LastOrderId") && _G(tp.Name+"_OperatingStatus") != OPERATE_STATUS_NONE){
@@ -537,6 +700,8 @@ function onTick(tp) {
 	}
 
     //定义并初始化其他变量
+	var stockValue = parseFloat((Account.Stocks*Ticker.Last).toFixed(tp.Args.PriceDecimalPlace));
+	if(debug) Log("账户余额", parseFloat(Account.Balance).toFixed(8), "，可用币数", parseFloat(Account.Stocks).toFixed(8), "，冻结币数", parseFloat(Account.FrozenStocks).toFixed(8) , "，当前持币价值", stockValue);
 	//获取当前均价
 	var avgPrice = _G(tp.Name+"_AvgPrice");
 	if(!avgPrice){
@@ -554,12 +719,12 @@ function onTick(tp) {
 	var sellDynamicPoint = _G(tp.Name+"_SellDynamicPoint") ? _G(tp.Name+"_SellDynamicPoint") : tp.Args.SellPoint;
     var lastBuyPrice = _G(tp.Name+"_LastBuyPrice") ? _G(tp.Name+"_LastBuyPrice") : 0;
     var lastSellPrice = _G(tp.Name+"_LastSellPrice") ? _G(tp.Name+"_LastSellPrice") : 0;
-	var historyMinPrice = _G(tp.Name+"_HistoryMinPrice") ? _G(tp.Name+"_HistoryMinPrice") : 0;
+	var historyHighPoint = _G(tp.Name+"_HistoryHighPoint") ? _G(tp.Name+"_HistoryHighPoint") : 0;
     var costTotal = parseFloat((avgPrice*coinAmount).toFixed(tp.Args.PriceDecimalPlace));	//从帐户中获取当前持仓信息和平均价格算出来
 	var opAmount = 0;
     var orderid = 0;
 	var isOperated = false;	
-	if(debug) Log("历史最低均价", historyMinPrice, "，当前持仓均价", avgPrice, "，持币数量", _N(coinAmount,tp.Args.StockDecimalPlace), "，上一次买入", lastBuyPrice, "，上一次卖出", lastSellPrice, "，总持币成本", costTotal);
+	if(debug) Log("当前持仓均价", avgPrice, "，持币数量", _N(coinAmount,tp.Args.StockDecimalPlace), "，上一次买入", lastBuyPrice, "，上一次卖出", lastSellPrice, "，总持币成本", costTotal);
 
 	//收集当前交易对信息
 	var tpInfo = {
@@ -587,7 +752,7 @@ function onTick(tp) {
     }
     var baseBuyPrice = lastBuyPrice ? lastBuyPrice : avgPrice;
     var baseSellPrice = lastSellPrice ? lastSellPrice : avgPrice;
-    if(debug) Log("当前基准买入价格=", baseBuyPrice, "，当前基准卖出价格=", baseSellPrice, "，买入点", tp.Args.BuyPoint, "，当前币价", Ticker.Sell);
+    if(debug) Log("当前基准买入价格=", baseBuyPrice, "，当前基准卖出价格=", baseSellPrice, "，动态买入点", buyDynamicPoint, "，动态买出点", sellDynamicPoint, "，当前币价", Ticker.Sell);
     if (crossNum < 0 && (baseBuyPrice === 0 || Ticker.Sell < baseBuyPrice * (1 - buyDynamicPoint - tp.Args.BuyFee))) {
 		if(coinAmount <= tp.Args.MaxCoinLimit){
 			//判断当前余额下可买入数量
@@ -608,6 +773,7 @@ function onTick(tp) {
 				isOperated = true;
 				_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_BUY);
 				var buyfee = opAmount*Ticker.Sell;
+				Log("当前基准买入价格", baseBuyPrice, "上次买入价格", lastBuyPrice, "动态买入点", buyDynamicPoint, "当前持仓总量", coinAmount);
 				Log(tp.Title+"交易对准备以",Ticker.Sell,"的价格买入",opAmount,"个币，当前账户余额为：",Account.Balance,"。本次下单金额",buyfee,"，本次预期买入数量",opAmount,"，预期成交价格",Ticker.Sell); 
 				orderid = tp.Exchange.Buy(-1,buyfee);
 			}else{
@@ -616,13 +782,13 @@ function onTick(tp) {
 		}else{
 			if(debug) Log("当前持仓数量已经达到最大持仓量", tp.Args.MaxCoinLimit, "，不再买入，看机会卖出。");
 		}
-    } else if (crossNum > 0 && Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee)) {
+    } else if (coinAmount > tp.Args.MinCoinLimit+tp.Args.MinStockAmount && (crossNum > 0 && Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee) || Ticker.Buy < historyHighPoint*0.85 && historyHighPoint/avgPrice > 1.30 && Ticker.Buy/avgPrice > 1.05)) {
 		var operatefineness = sellDynamicPoint == tp.Args.SellPoint ? tp.Args.OperateFineness : tp.Args.OperateFineness*(1+(Ticker.Buy-avgPrice)/avgPrice);
 		opAmount = (coinAmount - tp.Args.MinCoinLimit) > operatefineness? operatefineness : _N((coinAmount - tp.Args.MinCoinLimit),tp.Args.StockDecimalPlace);
 		if(coinAmount > tp.Args.MinCoinLimit && opAmount > tp.Args.MinStockAmount){
 			if(debug) Log("当前市价", Ticker.Buy, " > 卖出点", parseFloat((baseSellPrice * (1 + tp.Args.SellPoint + tp.Args.SellFee)).toFixed(tp.Args.PriceDecimalPlace)), "，准备卖出",opAmount,"个币");
 			isOperated = true;
-			Log(tp.Title+"交易对准备以大约",Ticker.Buy,"的价格卖出",opAmount,"个币。");
+			Log(tp.Title+"交易对准备以大约",Ticker.Buy,"的价格卖出",opAmount,"个币，当前持仓总量",coinAmount, "动态买入点", sellDynamicPoint, "baseSellPrice", baseSellPrice);
 			_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_SELL);
 			orderid = tp.Exchange.Sell(-1, opAmount);
 		}else{
@@ -638,16 +804,18 @@ function onTick(tp) {
     			if(debug) Log("且当前持仓量小于可卖仓量（最后买入持仓量-最小持仓量）的40%和价格已经回落到了上次卖出价头寸的4成，调整买入指导价为当前价格，以方便可以在相对合理的价格就开始开仓补货。");
     		}
     	}else if(lastBuyPrice > 0 && lastSellPrice == 0 && coinAmount<=tp.Args.MinCoinLimit+tp.Args.MinStockAmount){
-    		var goodbuyprice = (Ticker.Sell-avgPrice)/2+avgPrice;
+    		var goodbuyprice = (Ticker.Sell+avgPrice)/2;
 	    	if(goodbuyprice > lastBuyPrice){
 				_G(tp.Name+"_LastBuyPrice", goodbuyprice);
-				if(debug) Log("当前已经完成平仓，但币价继续上升，适当调整买入指导价以防止指导价过低无法买入。");
+				if(debug) Log("当前已经完成平仓，但币价继续上升，适当调整买入指导价以防止指导价过低无法买入。从",lastBuyPrice,"调到",goodbuyprice);
 	    	}
     	}
 		if (crossNum < 0 ){
 			if(debug) Log("价格没有下跌到买入点，继续观察行情...");
 		}else{
 			if(debug) Log("价格没有上涨到卖出点，继续观察行情...");
+			//调整买入后的量高价格
+			if(Ticker.Buy > historyHighPoint) _G(tp.Name+"_HistoryHighPoint", Ticker.Buy);
 		}
     }
     //判断并输出操作结果
@@ -699,43 +867,67 @@ function showStatus(nowtp){
 		var accounttables = [];
 		var accounttable1 = {};
 		accounttable1.type="table";
-		accounttable1.title = "交易对状态信息";
-		accounttable1.cols = ['交易对','买入次数','卖出次数','总交易次数','累计收益','调试','添加时间','最后更新'];
+		accounttable1.title = "价格信息";
+		accounttable1.cols = ['交易对','账户余额','冻结币数','长线持仓量','持仓均价','持仓成本','当前币价','持币价值','上次买入价','上次卖出价','买入点','卖出点'];
 		var rows = [];
 		for(var r=0;r<TradePairs.length;r++){
 			var tp = TradePairs[r];
-			rows.push([tp.Title, _G(tp.Name+"_BuyTimes"), _G(tp.Name+"_SellTimes"), (_G(tp.Name+"_BuyTimes")+_G(tp.Name+"_SellTimes")), _G(tp.Name+"_SubProfit"), _G(tp.Name+"_Debug"), _G(tp.Name+"_AddTime"), tp.LastUpdate]);
+			var i = tp.TPInfo;
+			rows.push([tp.Title, parseFloat(i.Balance).toFixed(8), parseFloat((i.FrozenStocks+0).toFixed(8)), parseFloat((i.Stocks+0).toFixed(8)), i.AvgPrice, i.CostTotal, 
+			i.TickerLast, i.StockValue,  parseFloat(i.LastBuyPrice).toFixed(tp.Args.PriceDecimalPlace),  parseFloat(i.LastSellPrice).toFixed(tp.Args.PriceDecimalPlace),_N(i.BuyDynamicPoint,3),_N(i.SellDynamicPoint,3)]);
 		}
 		accounttable1.rows = rows;
 		accounttables.push(accounttable1);
 		var accounttable2 = {};
 		accounttable2.type="table";
-		accounttable2.title = "交易对价格信息";
-		accounttable2.cols = ['交易对', '账户余额', '持币数量','持仓均价','持仓成本','当前币价','持币价值','上次买入价','上次卖出价','买入点','卖出点'];
+		accounttable2.title = "状态信息";
+		accounttable2.cols = ['交易对','买入次数','卖出次数','总交易次数','累计收益','调试','添加时间','最后更新'];
 		rows = [];
 		for(var r=0;r<TradePairs.length;r++){
 			var tp = TradePairs[r];
-			var i = tp.TPInfo;
-			rows.push([tp.Title, parseFloat(i.Balance).toFixed(8), parseFloat((i.Stocks+0).toFixed(8)), i.AvgPrice, i.CostTotal, 
-			i.TickerLast, i.StockValue,  parseFloat(i.LastBuyPrice).toFixed(tp.Args.PriceDecimalPlace),  parseFloat(i.LastSellPrice).toFixed(tp.Args.PriceDecimalPlace),_N(i.BuyDynamicPoint,3),_N(i.SellDynamicPoint,3)]);
+			rows.push([tp.Title, _G(tp.Name+"_BuyTimes"), _G(tp.Name+"_SellTimes"), (_G(tp.Name+"_BuyTimes")+_G(tp.Name+"_SellTimes")), _G(tp.Name+"_SubProfit"), _G(tp.Name+"_Debug"), _G(tp.Name+"_AddTime"), tp.LastUpdate]);
 		}
 		accounttable2.rows = rows;
 		accounttables.push(accounttable2);
+		var accounttable3 = {};
+		accounttable3.type="table";
+		accounttable3.title = "短线卖出挂单";
+		accounttable3.cols = ['交易对','买入价','卖出价','当前币价','交易量','订单编号','挂单时间'];
+		rows = [];
+		for(var r=0;r<TradePairs.length;r++){
+			var tp = TradePairs[r];
+			var s = tp.Ssst;
+			if(s){
+				rows.push([tp.Title, s.BuyPrice, s.SellPrice, tp.TPInfo.TickerLast, s.Amount, s.OrderID, _D(s.OrderTime)]);
+			}else{
+				rows.push([tp.Title, '-', '-', '-', '-', '-', '-']);
+			}
+		}
+		accounttable3.rows = rows;
+		accounttables.push(accounttable3);
 		AccountTables = accounttables;
 	}else{
 		var accounttable1 = AccountTables[0];
 		for(var r=0;r<accounttable1.rows.length;r++){
 			if(nowtp.Title == accounttable1.rows[r][0]){
-				accounttable1.rows[r] =[nowtp.Title, _G(nowtp.Name+"_BuyTimes"), _G(nowtp.Name+"_SellTimes"), (_G(nowtp.Name+"_BuyTimes")+_G(nowtp.Name+"_SellTimes")), _G(nowtp.Name+"_SubProfit"), _G(nowtp.Name+"_Debug"), _G(nowtp.Name+"_AddTime"), nowtp.LastUpdate];
+				var i = nowtp.TPInfo;
+				accounttable1.rows[r] =[nowtp.Title, parseFloat(i.Balance).toFixed(8), parseFloat((i.FrozenStocks+0).toFixed(8)), parseFloat((i.Stocks+0).toFixed(8)), i.AvgPrice, i.CostTotal, 
+				i.TickerLast, i.StockValue,  parseFloat(i.LastBuyPrice).toFixed(nowtp.Args.PriceDecimalPlace), parseFloat(i.LastSellPrice).toFixed(nowtp.Args.PriceDecimalPlace),_N(i.BuyDynamicPoint,3),_N(i.SellDynamicPoint,3)];
 				break;
 			}	
 		}
 		var accounttable2 = AccountTables[1];
 		for(var r=0;r<accounttable2.rows.length;r++){
 			if(nowtp.Title == accounttable2.rows[r][0]){
-				var i = nowtp.TPInfo;
-				accounttable2.rows[r] =[nowtp.Title, parseFloat(i.Balance).toFixed(8), parseFloat((i.Stocks+0).toFixed(8)), i.AvgPrice, i.CostTotal, 
-				i.TickerLast, i.StockValue,  parseFloat(i.LastBuyPrice).toFixed(nowtp.Args.PriceDecimalPlace), parseFloat(i.LastSellPrice).toFixed(nowtp.Args.PriceDecimalPlace),_N(i.BuyDynamicPoint,3),_N(i.SellDynamicPoint,3)];
+				accounttable2.rows[r] =[nowtp.Title, _G(nowtp.Name+"_BuyTimes"), _G(nowtp.Name+"_SellTimes"), (_G(nowtp.Name+"_BuyTimes")+_G(nowtp.Name+"_SellTimes")), _G(nowtp.Name+"_SubProfit"), _G(nowtp.Name+"_Debug"), _G(nowtp.Name+"_AddTime"), nowtp.LastUpdate];
+				break;
+			}	
+		}		
+		var accounttable3 = AccountTables[2];
+		for(var r=0;r<accounttable3.rows.length;r++){
+			if(nowtp.Title == accounttable3.rows[r][0]){
+				var s = nowtp.Ssst;
+				if(s) accounttable3.rows[r] =[nowtp.Title, s.BuyPrice, s.SellPrice, nowtp.TPInfo.TickerLast, s.Amount, s.OrderID, s.OrderTime === 0 ? 0 : _D(s.OrderTime)];
 				break;
 			}	
 		}		
@@ -754,7 +946,9 @@ function main() {
 			if(_G(tp.Name+"_Debug") == "1") Log("开始操作",tp.Title,"交易对...");
 			//设置小数位，第一个为价格小数位，第二个为数量小数位
 			tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.StockDecimalPlace);
-			//操作交易
+			//短线交易处理
+			ssstHandle(tp);
+			//操作长线交易
 			if(!onTick(tp)) break;
 			//操作状态显示
 			tp.LastUpdate = _D();
