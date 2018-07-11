@@ -338,7 +338,9 @@ function changeDataForSell(tp,account,order){
 	
 	//调整动态点数
 	var sellDynamicPoint = _G(tp.Name+"_SellDynamicPoint") ? _G(tp.Name+"_SellDynamicPoint") : tp.Args.SellPoint;
-	_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint+AddPointInSell);
+	var newsdp = sellDynamicPoint+AddPointInSell;
+	sellDynamicPoint = newsdp < tp.Args.SellPoint/2 ? tp.Args.SellPoint/2 : newsdp;
+	_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint);
 	var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint") ? _G(tp.Name+"_BuyDynamicPoint") : tp.Args.BuyPoint;
 	if(buyDynamicPoint != tp.Args.BuyPoint) _G(tp.Name+"_BuyDynamicPoint", tp.Args.BuyPoint);
 }
@@ -370,9 +372,9 @@ function changeDataForBuy(tp,account,order){
 	var avgPrice = _G(tp.Name+"_AvgPrice");
 	var beforeBuyingStocks = _G(tp.Name+"_BeforeBuyingStocks");
 	if(order.Status === ORDER_STATE_CLOSED ){
-		Log(tp.Title,"交易对买入订单",_G(tp.Name+"_LastOrderId"),"交易成功!成交均价：",order.AvgPrice,"，挂单数量：",order.Amount,"，买到数量：",order.DealAmount);			
+		Log(tp.Title,"交易对买入订单",_G(tp.Name+"_LastOrderId"),"交易成功!成交均价：",order.AvgPrice,"，挂单买入：",order.Amount,"，买到数量：",order.DealAmount);			
 	}else{
-		Log(tp.Title,"交易对买入订单",_G(tp.Name+"_LastOrderId"),"部分成交!成交均价：",order.AvgPrice,"，挂单数量：",order.Amount,"，买到数量：",order.DealAmount);		
+		Log(tp.Title,"交易对买入订单",_G(tp.Name+"_LastOrderId"),"部分成交!成交均价：",order.AvgPrice,"，挂单买入：",order.Amount,"，买到数量：",order.DealAmount);		
 	}
 	
 	var flag = false;	
@@ -482,7 +484,7 @@ function changeDataForBuy(tp,account,order){
 	}
 	
 	//设置最后一次买入价格,仅在买入量超过一半的情况下调整最后买入价格，没到一半继续买入
-	if(order.DealAmount>(order.Amount/2)){
+	if(order.Price != -1 && order.DealAmount>(order.Amount/2) || order.Price == -1 && order.DealAmount>(order.Amount/order.AvgPrice/2)){
 		_G(tp.Name+"_LastBuyPrice",parseFloat(order.AvgPrice));
 	}
 
@@ -502,6 +504,8 @@ function changeDataForBuy(tp,account,order){
 	var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint") ? _G(tp.Name+"_BuyDynamicPoint") : tp.Args.BuyPoint;
 	var loc = getInDayLineLocation(tp);
 	if((loc.Now-loc.Low)/(loc.High-loc.Low) < 0.1){
+		var newbdp = buyDynamicPoint-AddPointInBuy;
+		buyDynamicPoint = newbdp < tp.Args.BuyPoint ? tp.Args.BuyPoint : newbdp;
 		_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint-AddPointInBuy);
 	}else{
 		_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint+AddPointInBuy);
@@ -598,6 +602,7 @@ function commandProc(){
 						tp.Args.BuyPoint = parseFloat(values[1]);
 					}
 				}
+				Log("对买入点的基数的修改只是本次运行有效，要下次运行有效请修改参数JSON",values[1]," #FF0000");
 				ArgTables = null;
 			}else if(cmds[0] == "NewSellPoint"){
 				if(values[0].toUpperCase() == "ALL"){
@@ -613,6 +618,7 @@ function commandProc(){
 						tp.Args.SellPoint = parseFloat(values[1]);
 					}
 				}
+				Log("对卖出点的基数的修改只是本次运行有效，要下次运行有效请修改参数JSON",values[1]," #FF0000");
 				ArgTables = null;
 			}else if(cmds[0] == "Debug"){
 				if(values[0].toUpperCase() == "ALL"){
@@ -673,7 +679,9 @@ function checkSsstSellFinish(tp, cancelorder){
 		//挂单顺利卖出，恢复上次买入价格和动态买入点。
 		_G(tp.Name+"_LastBuyPrice", tp.Ssst.LastBuyPrice);
 		var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint");
-		_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint-AddPointInBuy);
+		if(!cancelorder){	//只要不是在买入成功检测之前挂单的情况下可以把买入点调回上一次买入点
+			_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint-AddPointInBuy);
+		}
 		//挂单已经完成，重置Ssst对像
 		tp.Ssst = new SsstData();
 		_G(tp.Name+"_Ssst_Exists", 0);
@@ -1059,7 +1067,7 @@ function showStatus(nowtp){
 			var tp = TradePairs[r];
 			var i = tp.TPInfo;
 			rows.push([tp.Title, parseFloat(i.Balance).toFixed(8), parseFloat((i.FrozenStocks+0).toFixed(8)), parseFloat((i.Stocks+0).toFixed(8)), i.AvgPrice, i.CostTotal, 
-			i.TickerLast, i.StockValue,  parseFloat(i.LastBuyPrice).toFixed(tp.Args.PriceDecimalPlace),  parseFloat(i.LastSellPrice).toFixed(tp.Args.PriceDecimalPlace),_N(i.BuyDynamicPoint,3),_N(i.SellDynamicPoint,3)]);
+			i.TickerLast, i.StockValue,  parseFloat(i.LastBuyPrice).toFixed(tp.Args.PriceDecimalPlace),  parseFloat(i.LastSellPrice).toFixed(tp.Args.PriceDecimalPlace),(i.BuyDynamicPoint+0).toFixed(3),(i.SellDynamicPoint+0).toFixed(3)]);
 		}
 		accounttable1.rows = rows;
 		accounttables.push(accounttable1);
@@ -1097,7 +1105,7 @@ function showStatus(nowtp){
 			if(nowtp.Title == accounttable1.rows[r][0]){
 				var i = nowtp.TPInfo;
 				accounttable1.rows[r] =[nowtp.Title, parseFloat(i.Balance).toFixed(8), parseFloat((i.FrozenStocks+0).toFixed(8)), parseFloat((i.Stocks+0).toFixed(8)), i.AvgPrice, i.CostTotal, 
-				i.TickerLast, i.StockValue,  parseFloat(i.LastBuyPrice).toFixed(nowtp.Args.PriceDecimalPlace), parseFloat(i.LastSellPrice).toFixed(nowtp.Args.PriceDecimalPlace),_N(i.BuyDynamicPoint,3),_N(i.SellDynamicPoint,3)];
+				i.TickerLast, i.StockValue,  parseFloat(i.LastBuyPrice).toFixed(nowtp.Args.PriceDecimalPlace), parseFloat(i.LastSellPrice).toFixed(nowtp.Args.PriceDecimalPlace),(i.BuyDynamicPoint+0).toFixed(3),(i.SellDynamicPoint+0).toFixed(3)];
 				break;
 			}	
 		}
