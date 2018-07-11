@@ -484,7 +484,8 @@ function changeDataForBuy(tp,account,order){
 	}
 	
 	//设置最后一次买入价格,仅在买入量超过一半的情况下调整最后买入价格，没到一半继续买入
-	if(order.Price != -1 && order.DealAmount>(order.Amount/2) || order.Price == -1 && order.DealAmount>(order.Amount/order.AvgPrice/2)){
+	Log("changeDataForBuy order.Price", order.Price);
+	if(order.Price != 0 && order.DealAmount>(order.Amount/2) || order.Price == 0 && order.DealAmount>(order.Amount/order.AvgPrice/2)){
 		_G(tp.Name+"_LastBuyPrice",parseFloat(order.AvgPrice));
 	}
 
@@ -810,9 +811,12 @@ function checkCanBuytoFull(tp){
 			}else if(nowloc > 0.20 && nowloc <= 0.30 && position < 0.5){
 				Log("满足日K线金叉之后加仓到50%的条件，可以操作买入");
 				ret = 0.5;
-			}else if(nowloc > 0.30 && nowloc <= 0.50 && position < 0.3){
+			}else if(nowloc > 0.30 && nowloc <= 0.40 && position < 0.3){
 				Log("满足日K线金叉之后加仓到30%的条件，可以操作买入");
 				ret = 0.3;
+			}else if(nowloc > 0.40 && nowloc <= 0.50 && position < 0.2){
+				Log("满足日K线金叉之后加仓到20%的条件，可以操作买入");
+				ret = 0.2;
 			}
 		}
 	}
@@ -969,7 +973,7 @@ function onTick(tp) {
 			if(canpay < mustpay){
 				mustpay = canpay;
 			}
-			Log(tp.Name+"交易对当前需要快速操作买入加仓到", buytofull,"，预计花费",canpay);
+			Log(tp.Name+"交易对当前需要快速操作买入加仓到", buytofull,"，预计花费",mustpay);
 			isOperated = true;
 			_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_BUY);
 			orderid = tp.Exchange.Buy(-1,mustpay);    		

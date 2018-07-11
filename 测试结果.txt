@@ -1,17 +1,16 @@
-﻿----------------------------------------------------------------
-修改了V2.2的6个BUG前后的测试
+﻿再次修改V2.2的2个BUG和一个问题前后的测试
 修改前的代码测试结果：
 2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 50 0 
 [{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.139,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.03,"SellPoint":0.1,"Debug":0}]
 买入61次，卖出58，盈利23.7063565052，盈利率：47.41%
 2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 0 555.555 
 [{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.09,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.03,"SellPoint":0.1,"Debug":0}]
-买入70次，卖出79，盈利78.1535194878，盈利率：156.31%
+买入70次，卖出79，盈利77.819504355，盈利率：155.64%
 ---------------------------------
 修改后的代码测试结果：
 2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 50 0 
 [{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.139,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.03,"SellPoint":0.1,"Debug":0}]
-买入61次，卖出58，盈利23.7063557852，盈利率：47.41%
+买入55次，卖出54，盈利26.81882042，盈利率：53.64%
 2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 0 555.555 
 [{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.09,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.03,"SellPoint":0.1,"Debug":0}]
-买入70次，卖出79，盈利77.819504355，盈利率：155.64%
+买入70次，卖出79，盈利79.6261838048，盈利率：159.25%
