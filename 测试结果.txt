@@ -1,18 +1,19 @@
-﻿---------------------------------
-修改前的代码测试结果：
-2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 50 0 
-[{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.139,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.03,"SellPoint":0.1,"Debug":0}]
-买入55次，卖出54，盈利26.81882042，盈利率：53.64%
-2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 0 555.555 
-[{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.09,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.03,"SellPoint":0.1,"Debug":0}]
-买入70次，卖出79，盈利79.6261838048，盈利率：159.25%
+﻿策略主程序参考日K线之后，只在日K线正叉的时候操作止盈不在负叉的时候操作，因为在负叉的时候没有利盈最大化就卖掉了
 ---------------------------------
-修改后的代码测试结果：
+修改前的代码测试结果：
 2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 50 0 
 [{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.139,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.03,"SellPoint":0.2,"Debug":0}]
 买入38次，卖出36，盈利31.69218066，盈利率：63.38%
 2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 0 555.555 
 [{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.09,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.03,"SellPoint":0.2,"Debug":0}]
 买入67次，卖出80，盈利105.13589668，盈利率：210.27%
+---------------------------------
+修改后的代码测试结果：
+2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 50 0 
+[{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.139,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.03,"SellPoint":0.2,"Debug":0}]
+买入45次，卖出52，盈利83.68383487，盈利率：167.37%
+2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 0 555.555 
+[{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.09,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.03,"SellPoint":0.2,"Debug":0}]
+买入39次，卖出52，盈利128.49233541，盈利率：256.98%
 
-本次修改解决了回测系统中读不到前几天的交叉数而无法让策略有效运行的问题，使得策略可以在12月15号到1月15号期间有效运行，一方面将首次止盈卖出点调高到了20%，而原来是10%，另一方面在12月15号到1月15号期间币价增长非常高，所以带来了很大的收益比例。因为12月16号到1月5号之间回测平台没有数据，所以不在实现金叉保仓带来更多的回报
+
