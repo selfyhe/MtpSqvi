@@ -1,5 +1,5 @@
 /**************************************
-多交易对现货长线量化价值投资策略V2.2
+多交易对现货长线量化价值投资策略V2.3
 说明：
 1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
@@ -248,19 +248,7 @@ function Cross(tp, klinetype, a, b) {
         arr1 = a;
         arr2 = b;
     } else {
-        var records = null;
-        while (true) {
-            records = _C(tp.Exchange.GetRecords,klinetype);
-            if (records && records.length > a && records.length > b) {
-                break;
-            }
-            Sleep(1000);
-        }
-        if(klinetype == PERIOD_D1){
-        	LastRecords.DayRecords = records;
-        }else if(klinetype == PERIOD_H1){
-        	LastRecords.HourRecords = records;
-        }
+        var records = GetRecords(tp, klinetype);
         arr1 = pfnMA(records, a);
         arr2 = pfnMA(records, b);
     }
@@ -757,7 +745,9 @@ function getInDayLineLocation(tp){
 	}
 	loc.Now = loc.LastRecord.Close;
 	loc.SecondRecord = records[records.length - 2];
+	if(!loc.SecondRecord) loc.SecondRecord = loc.LastRecord;
 	loc.ThirdRecord = records[records.length - 3];
+	if(!loc.ThirdRecord) loc.ThirdRecord = loc.SecondRecord;
 	return loc;
 }
 
@@ -821,12 +811,13 @@ function checkCanBuytoFull(tp){
 			}
 		}
 	}
-	if(loc.SecondRecord.Open/loc.LastRecord.Close >= 1.3 && tp.TPInfo.Stocks < tp.Args.MaxCoinLimit){
+	if(loc.SecondRecord.High/loc.LastRecord.Close >= 1.3 && tp.TPInfo.Stocks < tp.Args.MaxCoinLimit){
 		//日线超跌30%，如果发生短时内，可以买入到6成
 		var records = GetRecords(tp,PERIOD_H1);
-		lastrecord = records[records.length - 1];
-		secondrecord = records[records.length - 2];
-		var downpc = secondrecord.Open/lastrecord.Close;
+		var lastrecord = records[records.length - 1];
+		var secondrecord = records[records.length - 2];
+		if(!secondrecord) secondrecord = lastrecord;
+		var downpc = secondrecord.High/lastrecord.Close;
 		var position = tp.TPInfo.CostTotal/(tp.TPInfo.Balance+tp.TPInfo.CostTotal);
 		if(downpc >= 1.7 && position < 0.9){
 			Log("满足时K线跌超50%加仓到90%的条件，可以操作买入");
@@ -913,7 +904,7 @@ function onTick(tp) {
 	tp.TPInfo = tpInfo; 
 
 	//获取行情数据
-    var crossNum = Cross(tp, PERIOD_H1, 7, 21);
+    var crossNum = Cross(tp, PERIOD_D1, 7, 21);
     if (crossNum > 0) {
         if(debug) Log("当前交叉数为", crossNum, ",处于上升通道");
     } else {
@@ -951,7 +942,7 @@ function onTick(tp) {
 		}else{
 			if(debug) Log("当前持仓数量已经达到最大持仓量", tp.Args.MaxCoinLimit, "，不再买入，看机会卖出。");
 		}
-    } else if (coinAmount > tp.Args.MinCoinLimit+tp.Args.MinStockAmount && (Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee) || Ticker.Buy < historyHighPoint*0.85 && historyHighPoint/avgPrice > 1.30 && Ticker.Buy/avgPrice > 1.05 && (coinAmount-tp.Args.MinCoinLimit) > _G(tp.Name+"_lastBuycoinAmount")*0.3)) {
+    } else if (coinAmount > tp.Args.MinCoinLimit+tp.Args.MinStockAmount && (Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee) || Ticker.Buy < historyHighPoint*0.85 && historyHighPoint/avgPrice > 1.50 && Ticker.Buy/avgPrice > 1.05 && (coinAmount-tp.Args.MinCoinLimit) > _G(tp.Name+"_lastBuycoinAmount")*0.3)) {
 		var operatefineness = sellDynamicPoint == tp.Args.SellPoint ? tp.Args.OperateFineness : tp.Args.OperateFineness*(1+(Ticker.Buy-avgPrice)/avgPrice);
 		opAmount = (coinAmount - tp.Args.MinCoinLimit) > operatefineness? operatefineness : _N((coinAmount - tp.Args.MinCoinLimit),tp.Args.StockDecimalPlace);
 		if(coinAmount > tp.Args.MinCoinLimit && opAmount > tp.Args.MinStockAmount){
@@ -983,7 +974,8 @@ function onTick(tp) {
     		var hourrecords = GetRecords(tp, PERIOD_H1);
     		var lastrecords = hourrecords[hourrecords.length -1];
     		var secondrecords = hourrecords[hourrecords.length -2];
-    		if(coinAmount > tp.Args.MinCoinLimit+tp.Args.MinStockAmount && (lastrecords.Open/lastrecords.Low > 1.3 && (lastrecords.Close - lastrecords.Low)/(lastrecords.Open - lastrecords.Low) > 0.8 || secondrecords.Open/secondrecords.Low > 1.3 && (lastrecords.Close - secondrecords.Low)/(secondrecords.Open - secondrecords.Low) > 0.8) && Ticker.Buy/avgPrice > 1.02){
+    		if(!secondrecords) secondrecords = lastrecords;
+    		if(coinAmount > tp.Args.MinCoinLimit+tp.Args.MinStockAmount && (lastrecords.High/lastrecords.Low > 1.3 && (lastrecords.Close - lastrecords.Low)/(lastrecords.High - lastrecords.Low) > 0.8 || secondrecords.High/secondrecords.Low > 1.3 && (lastrecords.Close - secondrecords.Low)/(secondrecords.High - secondrecords.Low) > 0.8) && Ticker.Buy/avgPrice > 1.02){
     			opAmount = coinAmount - tp.Args.MinCoinLimit;
     			isOperated = true;
 				Log(tp.Title+"交易对当前发生了超过30%的超跌后回升超过8成，操作平仓");
