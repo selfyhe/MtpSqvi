@@ -63,8 +63,6 @@ var StartTime = _D();	//策略启动时间
 var TickTimes = 0;		//刷新次数
 var ArgTables;		//已经处理好的用于显示的参数表，当参数更新时置空重新生成，以加快刷新速度
 var AccountTables;	//当前的账户信息表，如果当前已经有表，只要更新当前交易对，这样可以加快刷新速度，减少内存使用
-var AddPointInBuy = 0.008;	//买入价格动态点增加数
-var AddPointInSell = -0.005;	//卖出价格动态点增加数
 var LastRecords = {"DayRecords":null,"HourRecords":null};
 
 //取得交易所对像
@@ -108,7 +106,7 @@ function checkArgs(tp){
 		ret = false;
 	}
 	if(a.OperateFineness === 0){
-		Log(tp.Name,"交易对参数：买卖操作的粒度为0，必须填写此字段。 #FF0000");
+		Log(tp.Name,"交易对参数：基础买卖操作的粒度为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.BuyFee === 0 || a.SellFee === 0){
@@ -124,14 +122,14 @@ function checkArgs(tp){
 		ret = false;
 	}
 	if(a.BuyPoint === 0){
-		Log(tp.Name,"交易对参数：指导买入点为0，必须填写此字段。 #FF0000");
+		Log(tp.Name,"交易对参数：基准买入点为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.SellPoint === 0){
-		Log(tp.Name,"交易对参数：指导卖出点为0，必须填写此字段。 #FF0000");
+		Log(tp.Name,"交易对参数：基准卖出点为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
-	Log(tp.Title,"交易对接收参数如下：最大持仓量", a.MaxCoinLimit, "，买卖操作的粒度", a.OperateFineness, "，当前持仓平均价格/指导买入价格", a.NowCoinPrice, "，平台买卖手续费（", a.BuyFee, a.SellFee,"），交易对价格/数量小数位（", a.PriceDecimalPlace, a.StockDecimalPlace,"），限价单最小交易数量", a.MinStockAmount,"，指导买入点", a.BuyPoint,"，指导卖出点", a.SellPoint);
+	Log(tp.Title,"交易对接收参数如下：",tp.Args);
 	return ret;
 }
 
@@ -159,7 +157,10 @@ function parseArgsJson(json){
 					StockDecimalPlace:args[i].StockDecimalPlace,
 					MinStockAmount:args[i].MinStockAmount,
 					BuyPoint:args[i].BuyPoint,
-					SellPoint:args[i].SellPoint
+					AddPointInBuy:args[i].AddPointInBuy,
+					SellPoint:args[i].SellPoint,
+					AddPointInSell:args[i].AddPointInSell,
+					CanKeepPosition:args[i].CanKeepPosition
 				};					
 				tp.Args = Args;
 				//检测参数的填写
@@ -327,7 +328,7 @@ function changeDataForSell(tp,account,order){
 	
 	//调整动态点数
 	var sellDynamicPoint = _G(tp.Name+"_SellDynamicPoint") ? _G(tp.Name+"_SellDynamicPoint") : tp.Args.SellPoint;
-	var newsdp = sellDynamicPoint+AddPointInSell;
+	var newsdp = sellDynamicPoint + tp.Args.AddPointInSell;
 	sellDynamicPoint = newsdp < tp.Args.SellPoint/2 ? tp.Args.SellPoint/2 : newsdp;
 	_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint);
 	var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint") ? _G(tp.Name+"_BuyDynamicPoint") : tp.Args.BuyPoint;
@@ -494,11 +495,11 @@ function changeDataForBuy(tp,account,order){
 	var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint") ? _G(tp.Name+"_BuyDynamicPoint") : tp.Args.BuyPoint;
 	var loc = getInDayLineLocation(tp);
 	if((loc.Now-loc.Low)/(loc.High-loc.Low) < 0.1){
-		var newbdp = buyDynamicPoint-AddPointInBuy;
+		var newbdp = buyDynamicPoint - tp.Args.AddPointInBuy;
 		buyDynamicPoint = newbdp < tp.Args.BuyPoint ? tp.Args.BuyPoint : newbdp;
-		_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint-AddPointInBuy);
+		_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint - tp.Args.AddPointInBuy);
 	}else{
-		_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint+AddPointInBuy);
+		_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint + tp.Args.AddPointInBuy);
 	}
 	var sellDynamicPoint = _G(tp.Name+"_SellDynamicPoint") ? _G(tp.Name+"_SellDynamicPoint") : tp.Args.SellPoint;
 	if(sellDynamicPoint != tp.Args.SellPoint) _G(tp.Name+"_SellDynamicPoint", tp.Args.SellPoint);	
@@ -670,7 +671,7 @@ function checkSsstSellFinish(tp, cancelorder){
 		_G(tp.Name+"_LastBuyPrice", tp.Ssst.LastBuyPrice);
 		var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint");
 		if(!cancelorder){	//只要不是在买入成功检测之前挂单的情况下可以把买入点调回上一次买入点
-			_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint-AddPointInBuy);
+			_G(tp.Name+"_BuyDynamicPoint", buyDynamicPoint - tp.Args.AddPointInBuy);
 		}
 		//挂单已经完成，重置Ssst对像
 		tp.Ssst = new SsstData();
@@ -787,27 +788,29 @@ function checkCanDoSsst(tp, account){
  */
 function checkCanBuytoFull(tp){
 	var ret = 0;
-	var crossnum = Cross(tp, PERIOD_D1, 7, 21);
 	var loc = getInDayLineLocation(tp);
-	if(crossnum == 1 || crossnum == 2){
-		if(loc.LastRecord.Close > loc.LastRecord.Open && loc.SecondRecord.Close > loc.SecondRecord.Open && loc.ThirdRecord.Close > loc.ThirdRecord.Open && tp.TPInfo.Stocks < tp.Args.MaxCoinLimit){
-			var nowloc = (loc.Now-loc.Low)/(loc.High-loc.Low);
-			var position = tp.TPInfo.CostTotal/(tp.TPInfo.Balance+tp.TPInfo.CostTotal-tp.TPInfo.TickerLast*tp.Args.MinCoinLimit);
-			if(nowloc <= 0.05 && position < 0.9){
-				Log("满足日K线金叉之后加仓到90%的条件，可以操作买入");
-				ret = 0.9;
-			}else if(nowloc > 0.05 && nowloc <= 0.20 && position < 0.7){
-				Log("满足日K线金叉之后加仓到70%的条件，可以操作买入");
-				ret = 0.7;
-			}else if(nowloc > 0.20 && nowloc <= 0.30 && position < 0.5){
-				Log("满足日K线金叉之后加仓到50%的条件，可以操作买入");
-				ret = 0.5;
-			}else if(nowloc > 0.30 && nowloc <= 0.40 && position < 0.3){
-				Log("满足日K线金叉之后加仓到30%的条件，可以操作买入");
-				ret = 0.3;
-			}else if(nowloc > 0.40 && nowloc <= 0.50 && position < 0.2){
-				Log("满足日K线金叉之后加仓到20%的条件，可以操作买入");
-				ret = 0.2;
+	if(tp.Args.CanKeepPosition){
+		var crossnum = Cross(tp, PERIOD_D1, 7, 21);
+		if(crossnum == 1 || crossnum == 2){
+			if(loc.LastRecord.Close > loc.LastRecord.Open && loc.SecondRecord.Close > loc.SecondRecord.Open && loc.ThirdRecord.Close > loc.ThirdRecord.Open && tp.TPInfo.Stocks < tp.Args.MaxCoinLimit){
+				var nowloc = (loc.Now-loc.Low)/(loc.High-loc.Low);
+				var position = tp.TPInfo.CostTotal/(tp.TPInfo.Balance+tp.TPInfo.CostTotal-tp.TPInfo.TickerLast*tp.Args.MinCoinLimit);
+				if(nowloc <= 0.05 && position < 0.9){
+					Log("满足日K线金叉之后加仓到90%的条件，可以操作买入");
+					ret = 0.9;
+				}else if(nowloc > 0.05 && nowloc <= 0.20 && position < 0.7){
+					Log("满足日K线金叉之后加仓到70%的条件，可以操作买入");
+					ret = 0.7;
+				}else if(nowloc > 0.20 && nowloc <= 0.30 && position < 0.5){
+					Log("满足日K线金叉之后加仓到50%的条件，可以操作买入");
+					ret = 0.5;
+				}else if(nowloc > 0.30 && nowloc <= 0.40 && position < 0.3){
+					Log("满足日K线金叉之后加仓到30%的条件，可以操作买入");
+					ret = 0.3;
+				}else if(nowloc > 0.40 && nowloc <= 0.50 && position < 0.2){
+					Log("满足日K线金叉之后加仓到20%的条件，可以操作买入");
+					ret = 0.2;
+				}
 			}
 		}
 	}
@@ -1044,8 +1047,11 @@ function showStatus(nowtp){
 			rows.push(['PriceDecimalPlace','交易对价格小数位', tp.Args.PriceDecimalPlace]);		
 			rows.push(['StockDecimalPlace','交易对数量小数位', tp.Args.StockDecimalPlace]);		
 			rows.push(['MinStockAmount','限价单最小交易数量', tp.Args.MinStockAmount]);		
-			rows.push(['BuyPoint','买入点', tp.Args.BuyPoint]);		
-			rows.push(['SellPoint','卖出点', tp.Args.SellPoint]);		
+			rows.push(['BuyPoint','基准买入点', tp.Args.BuyPoint]);		
+			rows.push(['AddPointInBuy','动态买入加点', tp.Args.AddPointInBuy]);		
+			rows.push(['SellPoint','基准卖出点', tp.Args.SellPoint]);		
+			rows.push(['AddPointInSell','动态卖出加点', tp.Args.AddPointInSell]);		
+			rows.push(['CanKeepPosition','是否允许在金叉保仓', ['不允许','允许'][tp.Args.CanKeepPosition]]);		
 			table.rows = rows;
 			argtables.push(table);
 		}
