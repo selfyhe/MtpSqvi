@@ -474,7 +474,6 @@ function changeDataForBuy(tp,account,order){
 	}
 	
 	//设置最后一次买入价格,仅在买入量超过一半的情况下调整最后买入价格，没到一半继续买入
-	Log("changeDataForBuy order.Price", order.Price);
 	if(order.Price != 0 && order.DealAmount>(order.Amount/2) || order.Price == 0 && order.DealAmount>(order.Amount/order.AvgPrice/2)){
 		_G(tp.Name+"_LastBuyPrice",parseFloat(order.AvgPrice));
 	}
@@ -945,7 +944,17 @@ function onTick(tp) {
 		}else{
 			if(debug) Log("当前持仓数量已经达到最大持仓量", tp.Args.MaxCoinLimit, "，不再买入，看机会卖出。");
 		}
-    } else if (crossNum > 0 && (coinAmount > tp.Args.MinCoinLimit+tp.Args.MinStockAmount && (Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee) || Ticker.Buy < historyHighPoint*0.85 && historyHighPoint/avgPrice > 1.50 && Ticker.Buy/avgPrice > 1.05 && (coinAmount-tp.Args.MinCoinLimit) > _G(tp.Name+"_lastBuycoinAmount")*0.3))) {
+    } else if (coinAmount > tp.Args.MinCoinLimit+tp.Args.MinStockAmount && (crossNum > 0 && ((Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee) || Ticker.Buy < historyHighPoint*0.85 && historyHighPoint/avgPrice > 1.60 && (coinAmount-tp.Args.MinCoinLimit) > _G(tp.Name+"_lastBuycoinAmount")*0.4)) || crossNum < 0 && Ticker.Buy/avgPrice > 1.15)) {
+    	if(Ticker.Buy < historyHighPoint*0.85){
+    		//发生大的回撤时，调整动态卖出点，期望余下的40%的仓位还可以卖个好价
+    		var handledRetreat = _G(tp.Name+"_HandledRetreat") ? _G(tp.Name+"_HandledRetreat") : 0;
+    		if(!handledRetreat){
+    			sellDynamicPoint = sellDynamicPoint/2;
+    			_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint);
+    			_G(tp.Name+"_HandledRetreat", 1);
+    			Log("在超过60%浮盈后币价出现了超过15%的回撤，调整动态卖出点减半，期望余下的40%的仓位还可以卖个好价");
+    		}
+    	}
 		var operatefineness = sellDynamicPoint == tp.Args.SellPoint ? tp.Args.OperateFineness : tp.Args.OperateFineness*(1+(Ticker.Buy-avgPrice)/avgPrice);
 		opAmount = (coinAmount - tp.Args.MinCoinLimit) > operatefineness? operatefineness : _N((coinAmount - tp.Args.MinCoinLimit),tp.Args.StockDecimalPlace);
 		if(coinAmount > tp.Args.MinCoinLimit && opAmount > tp.Args.MinStockAmount){
@@ -1006,7 +1015,10 @@ function onTick(tp) {
 				}else{
 					if(debug) Log("价格没有上涨到卖出点，继续观察行情...");
 					//调整买入后的量高价格
-					if(Ticker.Buy > historyHighPoint) _G(tp.Name+"_HistoryHighPoint", Ticker.Buy);
+					if(Ticker.Buy > historyHighPoint){
+						_G(tp.Name+"_HistoryHighPoint", Ticker.Buy);
+						if(_G(tp.Name+"_HandledRetreat")) _G(tp.Name+"_HandledRetreat", 0);	//币价回升重置回撤处理
+					}
 				}
     		}
     	}
