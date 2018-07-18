@@ -40,6 +40,8 @@ Debug	更新调试状态	值的填写格式如下:TradePairName(更新全部交�
 var OPERATE_STATUS_NONE = -1;
 var OPERATE_STATUS_BUY = 0; 
 var OPERATE_STATUS_SELL = 1;
+//三档挂单级别定义
+var THRID_ORDERY_LEVELS = [0.02, 0.03, 0.04];
 
 //全局变量定义
 function TradePair(){
@@ -427,12 +429,7 @@ function changeDataForBuy(tp,account,order){
 				newSsst.Type = 1;
 				newSsst.BuyPrice = order.AvgPrice;
 				newSsst.Amount = order.DealAmount/3;
-				var profit = 0.02;
-				if(i == 1){
-					profit = 0.03;
-				}else if(i == 2){
-					profit = 0.04;
-				}
+				var profit = THRID_ORDERY_LEVELS[i];
 				newSsst.Level = profit;
 				newSsst.SellPrice = parseFloat((order.AvgPrice*(1+profit+tp.Args.BuyFee+tp.Args.SellFee)).toFixed(tp.Args.PriceDecimalPlace));
 				var orderid = tp.Exchange.Sell(newSsst.SellPrice, newSsst.Amount);
@@ -689,7 +686,7 @@ function checkSsstSellFinish(tp, cancelorder){
 				var orderid = tp.Exchange.Buy(tp.Sssts[i].BuyPrice, tp.Sssts[i].Amount);
 				if(orderid){
 					Log(tp.Title,"交易对短线再次买入挂单成功，新订单编号：",orderid);
-					tp.Sssts[i].Type = -1;
+					tp.Sssts[i].Type = 2;
 					tp.Sssts[i].OrderID = orderid;
 					tp.Sssts[i].OrderTime = new Date().getTime();
 				}else{
@@ -725,7 +722,7 @@ function checkSsstSellFinish(tp, cancelorder){
 //检测短线买入订单是否成功
 function checkSsstBuyFinish(tp){
 	for(var i=0;i<tp.Sssts.length;i++){
-		if(tp.Sssts[i].Type == -1){
+		if(tp.Sssts[i].Type == 2){
 			var order = tp.Exchange.GetOrder(tp.Sssts[i].OrderID);
 			if(order.Status === ORDER_STATE_CLOSED){
 				Log(tp.Title,"交易对再次买入限价挂单已经成功，订单编号",tp.Sssts[i].OrderID);
@@ -1020,7 +1017,7 @@ function onTick(tp) {
 		if(coinAmount > tp.Args.MinCoinLimit && opAmount > tp.Args.MinStockAmount){
 			if(debug) Log("当前市价", Ticker.Buy, " > 卖出点", parseFloat((baseSellPrice * (1 + tp.Args.SellPoint + tp.Args.SellFee)).toFixed(tp.Args.PriceDecimalPlace)), "，准备卖出",opAmount,"个币");
 			isOperated = true;
-			Log(tp.Title+"交易对准备以大约",Ticker.Buy,"的价格卖出",opAmount,"个币，当前持仓总量",coinAmount, "动态买入点", sellDynamicPoint, "baseSellPrice", baseSellPrice);
+			Log(tp.Title+"交易对准备以大约",Ticker.Buy,"的价格卖出",opAmount,"个币，当前持仓总量",coinAmount, "动态卖出点", sellDynamicPoint, "基准卖出价", baseSellPrice);
 			_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_SELL);
 			orderid = tp.Exchange.Sell(-1, opAmount);
 		}else{
@@ -1164,8 +1161,8 @@ function showStatus(nowtp){
 		rows = [];
 		for(var r=0;r<TradePairs.length;r++){
 			var tp = TradePairs[r];
-			for(var s in tp.Sssts){
-				rows.push([tp.Title, s.Level, s.Type==1 ? "卖出" : "买入", s.BuyPrice, s.SellPrice, tp.TPInfo.TickerLast, s.Amount, s.OrderID, _D(s.OrderTime)]);
+			for(var i = 0;i<THRID_ORDERY_LEVELS.length;i++){
+				rows.push([tp.Title, THRID_ORDERY_LEVELS[i], '-', '-', '-', '-', '-', '-', '-']);
 			}
 		}
 		accounttable3.rows = rows;
@@ -1191,13 +1188,18 @@ function showStatus(nowtp){
 		var accounttable3 = AccountTables[2];
 		for(var r=0;r<accounttable3.rows.length;r++){
 			if(nowtp.Title == accounttable3.rows[r][0]){
-				for(var s in nowtp.Sssts){
-					if(s.Level == accounttable3.rows[r][1]){
-						accounttable3.rows[r] = [nowtp.Title, s.Type==1 ? "卖出" : "买入", s.BuyPrice, s.SellPrice, tp.TPInfo.TickerLast, s.Amount, s.OrderID, _D(s.OrderTime)];
-						break;
+				if(nowtp.Sssts.length == 3){
+					for(var i=0;i<nowtp.Sssts.length;i++){
+						var s = nowtp.Sssts[i];
+						if(s.Level == accounttable3.rows[r][1]){
+							accounttable3.rows[r] = [nowtp.Title, s.Level, ['错误','卖出','买入'][s.Type], s.BuyPrice, s.Type==1 ? s.SellPrice : '-', nowtp.TPInfo.TickerLast, s.Amount, s.OrderID, _D(s.OrderTime)];
+							break;
+						}
 					}
+				}else{
+					var level = accounttable3.rows[r][1];
+					accounttable3.rows[r] = [nowtp.Title, level, '-', '-', '-', '-', '-', '-', '-'];
 				}
-				break;
 			}	
 		}		
 	}
