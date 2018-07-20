@@ -1,17 +1,17 @@
-﻿本次修改实现本次修改实现把快节奏的操作调到了常规节奏操作的前面，提升优先级别
+﻿本次修改实现在正叉上升阶段增加短线操作及修改保仓代码
 ---------------------------------
 修改前的代码测试结果：
 2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 50 0 
 [{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.139,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"Debug":0}]
-买入53次，卖出65，盈利101.71444068，盈利率：203.43%
+买入56次，卖出59，盈利87.68754688，盈利率：175.38%，显示91.025857
 2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 0 555.555 
 [{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.09,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"Debug":0}]
-买入52次，卖出70，盈利147.10120108，盈利率：294.20%
+买入39次，卖出60，盈利173.59590507，盈利率：347.20%
 ---------------------------------
 修改后的代码测试结果：
 2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 50 0 
 [{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.139,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"Debug":0}]
-买入40次，卖出54，盈利119.03417431，盈利率：238.07%
+买入58次，卖出62，盈利94.33943845，盈利率：188.68%
 2017-10-01 00:00:00 - 2018-06-21 10:00:00 BCH_BTC 0 555.555 
 [{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":20,"OperateFineness":40,"NowCoinPrice":0.09,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"MinStockAmount":0.001,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"Debug":0}]
-买入39次，卖出60，盈利173.59590507，盈利率：347.20%
+买入55次，卖出59，盈利122.97606622，盈利率：245.95%，显示盈利：126.31518899999998

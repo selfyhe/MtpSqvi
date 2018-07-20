@@ -40,8 +40,6 @@ Debug	更新调试状态	值的填写格式如下:TradePairName(更新全部交�
 var OPERATE_STATUS_NONE = -1;
 var OPERATE_STATUS_BUY = 0; 
 var OPERATE_STATUS_SELL = 1;
-//三档挂单级别定义
-var THRID_ORDERY_LEVELS = [0.02, 0.03, 0.04];
 
 //全局变量定义
 function TradePair(){
@@ -70,6 +68,9 @@ var TickTimes = 0;		//刷新次数
 var ArgTables;		//已经处理好的用于显示的参数表，当参数更新时置空重新生成，以加快刷新速度
 var AccountTables;	//当前的账户信息表，如果当前已经有表，只要更新当前交易对，这样可以加快刷新速度，减少内存使用
 var LastRecords = {"DayRecords":null,"HourRecords":null};
+var DayLineCrossNum = 0;	//当前日线交叉数
+var ThridOrderLevels = [];	//三档挂单级别定义，下跌期为[0.02, 0.03, 0.04]上升期改为[0.05, 0.08, 0.1]
+
 
 //取得交易所对像
 function getExchange(name){
@@ -419,17 +420,18 @@ function changeDataForBuy(tp,account,order){
 		//清空原来的挂单数组内容
 		tp.Sssts = [];
 		
-		if(checkCanDoSsst(tp, account)){
+		if(checkCanDoSsstInDown(tp, account)){
 			//将当前买入作为短线卖单挂出
 			Log(tp.Title,"交易对计划对当前成功的买入量做短线卖出挂单。");
 			var finish = false;
 			_G(tp.Name+"_Ssst_CanDo", 1);
+			ThridOrderLevels = [0.02, 0.03, 0.04];
 			for(var i=0;i<3;i++){
 				var newSsst = new SsstData();
 				newSsst.Type = 1;
 				newSsst.BuyPrice = order.AvgPrice;
 				newSsst.Amount = order.DealAmount/3;
-				var profit = THRID_ORDERY_LEVELS[i];
+				var profit = ThridOrderLevels[i];
 				newSsst.Level = profit;
 				newSsst.SellPrice = parseFloat((order.AvgPrice*(1+profit+tp.Args.BuyFee+tp.Args.SellFee)).toFixed(tp.Args.PriceDecimalPlace));
 				var orderid = tp.Exchange.Sell(newSsst.SellPrice, newSsst.Amount);
@@ -682,7 +684,7 @@ function checkSsstSellFinish(tp, cancelorder){
 		
 			if(order.Status === ORDER_STATE_CLOSED && !cancelorder){
 				//再以挂单的买入价，再挂限价单买入。
-				Log(tp.Title,"交易对短线卖出成功，再次以价格",tp.Sssts[i].BuyPrice,"挂限价单买入",tp.Sssts[i].Amount,"个币");
+				Log(tp.Title,"交易对",tp.Sssts[i].Level,"档短线挂单卖出成功，再次以价格",tp.Sssts[i].BuyPrice,"挂限价单买入",tp.Sssts[i].Amount,"个币");
 				var orderid = tp.Exchange.Buy(tp.Sssts[i].BuyPrice, tp.Sssts[i].Amount);
 				if(orderid){
 					Log(tp.Title,"交易对短线再次买入挂单成功，新订单编号：",orderid);
@@ -718,6 +720,156 @@ function checkSsstSellFinish(tp, cancelorder){
 	return ret;
 }
 
+//检测短线交易挂单在币价上涨的时候
+function checkSsstInPriceUp(tp){
+	//检测当前挂单中已经卖出完成的档
+	for(var i=0;i<tp.Sssts.length;i++){
+		if(tp.Sssts[i].Type == 1){
+			var order = tp.Exchange.GetOrder(tp.Sssts[i].OrderID);
+			if(!order) continue;
+			if(order.Status === ORDER_STATE_CLOSED){
+				//累计盈利
+				var TotalProfit = _G("TotalProfit");
+				var SubProfit = _G(tp.Name+"_SubProfit");
+				var profit = parseFloat((order.AvgPrice*order.DealAmount*(1-tp.Args.SellFee) - tp.Sssts[i].BuyPrice*order.DealAmount*(1+tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace));
+				SubProfit += profit;
+				TotalProfit += profit;
+				tp.Profit = SubProfit;
+				_G(tp.Name+"_SubProfit", SubProfit);
+				_G("TotalProfit", TotalProfit);
+				LogProfit(TotalProfit);
+		
+				if(order.Status === ORDER_STATE_CLOSED){
+					Log(tp.Title,"交易对短线挂单",tp.Sssts[i].OrderID,"交易成功!卖出价格：",order.AvgPrice,"，买入价格：",tp.Sssts[i].BuyPrice,"，卖出数量：",order.DealAmount,"，毛收盈：",profit,"，累计毛收盈：",TotalProfit);
+				}else{
+					Log(tp.Title,"交易对短线挂单",tp.Sssts[i].OrderID,"部分成交!卖出数量：",order.DealAmount,"，剩余数量：",order.Amount - order.DealAmount,"，卖出价格：",order.AvgPrice,"，买入价格：",avgPrice,"，毛收盈：",profit,"，累计毛收盈：",TotalProfit);
+				}
+				
+				//列新交易次数
+				var tradeTimes = _G(tp.Name+"_SellTimes");
+				tradeTimes++;
+				_G(tp.Name+"_SellTimes",tradeTimes);
+				
+				//再以本档交易的买入价再挂限价单买入。
+				Log(tp.Title,"交易对",tp.Sssts[i].Level,"档短线挂单卖出成功，再次以价格",tp.Sssts[i].BuyPrice,"挂限价单买入",tp.Sssts[i].Amount,"个币");
+				var orderid = tp.Exchange.Buy(tp.Sssts[i].BuyPrice, tp.Sssts[i].Amount);
+				if(orderid){
+					Log(tp.Title,"交易对短线再次买入挂单成功，新订单编号：",orderid);
+					tp.Sssts[i].Type = 2;
+					tp.Sssts[i].OrderID = orderid;
+					tp.Sssts[i].OrderTime = new Date().getTime();
+				}else{
+					Log(tp.Title,"交易对短线再次买入挂单失败，更改订单状态");
+					tp.Sssts[i].Type = 0;
+					tp.Sssts[i].OrderID = 0;
+					tp.Sssts[i].OrderTime = 0;
+				}
+				_G(tp.Name+"_Ssst_Type"+i, tp.Sssts[i].Type);
+				_G(tp.Name+"_Ssst_OrderID"+i, tp.Sssts[i].OrderID);
+				_G(tp.Name+"_Ssst_OrderTime"+i, tp.Sssts[i].OrderTime);
+			}
+		}
+	}
+	
+	//检测需要重新调整买入价格的档
+	for(var i=0;i<tp.Sssts.length;i++){
+		if(tp.Sssts[i].Type == 2){
+			if(tp.TPInfo.TickerLast/tp.Sssts[i].SellPrice > 1.01){
+				var order = tp.Exchange.GetOrder(tp.Sssts[i].OrderID);
+				if(order && order.Status === ORDER_STATE_PENDING){
+					Log(tp.Title,"交易对币创新高，达到",tp.TPInfo.TickerLast,"，原来在",tp.Sssts[i].SellPrice,"挂的买单",tp.Sssts[i].OrderID,"要取消重新挂单");
+					var retc = tp.Exchange.CancelOrder(tp.Sssts[i].OrderID);
+					if(retc){
+						//判断当前余额下可买入数量
+						var buyprice = parseFloat((tp.TPInfo.TickerLast * (1 - tp.Sssts[i].Level)).toFixed(tp.Args.PriceDecimalPlace));
+						var canpay = (tp.Args.MaxCoinLimit - tp.TPInfo.Stocks - tp.TPInfo.FrozenStocks) * tp.TPInfo.TickerLast;
+						if(tp.TPInfo.Balance < canpay){
+							canpay = tp.TPInfo.Balance;
+						}
+						var canbuy = canpay/buyprice;
+						var operatefineness = tp.Args.OperateFineness/2;
+						var opAmount = canbuy > operatefineness? operatefineness : canbuy;
+						opAmount = _N(opAmount, tp.Args.StockDecimalPlace);
+						if(opAmount > tp.Args.MinStockAmount){
+							tp.Sssts[i].Amount = opAmount;
+							tp.Sssts[i].BuyPrice = buyprice;
+							tp.Sssts[i].SellPrice = tp.TPInfo.TickerLast;
+							var orderid = tp.Exchange.Buy(tp.Sssts[i].BuyPrice, tp.Sssts[i].Amount);
+							if(orderid){
+								Log(tp.Title,"交易对短线再次以",tp.Sssts[i].BuyPrice,"价格买入挂单成功，新订单编号：",orderid);
+								tp.Sssts[i].Type = 2;
+								tp.Sssts[i].OrderID = orderid;
+								tp.Sssts[i].OrderTime = new Date().getTime();
+							}else{
+								Log(tp.Title,"交易对短线再次买入挂单失败，更改订单状态");
+								tp.Sssts[i].Type = 0;
+								tp.Sssts[i].OrderID = 0;
+								tp.Sssts[i].OrderTime = 0;
+							}
+							_G(tp.Name+"_Ssst_Type"+i, tp.Sssts[i].Type);
+							_G(tp.Name+"_Ssst_BuyPrice"+i, tp.Sssts[i].BuyPrice);
+							_G(tp.Name+"_Ssst_Amount"+i, tp.Sssts[i].Amount);
+							_G(tp.Name+"_Ssst_SellPrice"+i, tp.Sssts[i].SellPrice);
+							_G(tp.Name+"_Ssst_OrderID"+i, tp.Sssts[i].OrderID);
+							_G(tp.Name+"_Ssst_OrderTime"+i, tp.Sssts[i].OrderTime);							
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	//如果当前还没有短信挂单，那么就建立三层短线挂单
+	if(tp.Sssts.length < 3){
+		ThridOrderLevels = [0.03, 0.05, 0.08];
+		Log(tp.Title,"交易对当前处于正叉上升期，当前没有短线交易挂单，准备以当前价",tp.TPInfo.TickerLast,"向下建立挂单。");	
+		var accountbalance = tp.TPInfo.Balance;
+		var buyed = 0;
+		for(var i=tp.Sssts.length;i<3;i++){
+			//判断当前余额下可买入数量
+			var profit = ThridOrderLevels[i];
+			var buyprice = parseFloat((tp.TPInfo.TickerLast * (1 - profit)).toFixed(tp.Args.PriceDecimalPlace));
+			var canpay = (tp.Args.MaxCoinLimit - tp.TPInfo.Stocks - tp.TPInfo.FrozenStocks - buyed) * tp.TPInfo.TickerLast;
+			if(accountbalance < canpay){
+				canpay = accountbalance;
+			}
+			var canbuy = canpay/buyprice;
+			var operatefineness = tp.Args.OperateFineness/2;
+			var opAmount = canbuy > operatefineness? operatefineness : canbuy;
+			opAmount = _N(opAmount, tp.Args.StockDecimalPlace);
+			if(opAmount > tp.Args.MinStockAmount){
+				var newSsst = new SsstData();
+				newSsst.Type = 2;
+				newSsst.BuyPrice = buyprice
+				newSsst.Amount = opAmount;
+				newSsst.SellPrice = tp.TPInfo.TickerLast;
+				newSsst.Level = profit;
+				var orderid = tp.Exchange.Buy(newSsst.BuyPrice, newSsst.Amount);
+				if(orderid){
+					//挂单成功
+					Log(tp.Title,"交易对以当前价格",tp.TPInfo.TickerLast,"回撤",profit*100,"%买入挂单成功，订单编号",orderid);
+					newSsst.OrderID = orderid;
+					newSsst.OrderTime = new Date().getTime();
+					tp.Sssts.push(newSsst);
+					//保存挂单信息
+					_G(tp.Name+"_Ssst_Type"+i, newSsst.Type);
+					_G(tp.Name+"_Ssst_Level"+i, newSsst.Level);
+					_G(tp.Name+"_Ssst_BuyPrice"+i, newSsst.BuyPrice);
+					_G(tp.Name+"_Ssst_Amount"+i, newSsst.Amount);
+					_G(tp.Name+"_Ssst_SellPrice"+i, newSsst.SellPrice);
+					_G(tp.Name+"_Ssst_OrderID"+i, newSsst.OrderID);
+					_G(tp.Name+"_Ssst_OrderTime"+i, newSsst.OrderTime);	
+					//调整可用余额
+					accountbalance -= newSsst.BuyPrice*newSsst.Amount;
+					buyed += newSsst.Amount;
+				}else{
+					break;
+				}
+			}
+		}		
+	}
+}
+
 
 //检测短线买入订单是否成功
 function checkSsstBuyFinish(tp){
@@ -725,19 +877,25 @@ function checkSsstBuyFinish(tp){
 		if(tp.Sssts[i].Type == 2){
 			var order = tp.Exchange.GetOrder(tp.Sssts[i].OrderID);
 			if(order.Status === ORDER_STATE_CLOSED){
-				Log(tp.Title,"交易对再次买入限价挂单已经成功，订单编号",tp.Sssts[i].OrderID);
 				//列新交易次数
 				var tradeTimes = _G(tp.Name+"_BuyTimes");
 				tradeTimes++;
 				_G(tp.Name+"_BuyTimes",tradeTimes);
-
+				
+				if(DayLineCrossNum <= 0){
+					Log(tp.Title,"交易对再次下跌买入限价挂单已经交易成功，订单编号",tp.Sssts[i].OrderID);
+				}else{
+					Log(tp.Title,"交易对正叉回撤",tp.Sssts[i].Level*100,"%档的买入限价",tp.Sssts[i].BuyPrice,"挂单已经交易成功，订单编号",tp.Sssts[i].OrderID);
+					tp.Sssts[i].SellPrice = _G(tp.Name+"_HistoryHighPoint");
+				}
+				tp.Sssts[i].Amount = order.DealAmount;
 				var orderid = tp.Exchange.Sell(tp.Sssts[i].SellPrice, tp.Sssts[i].Amount);
 				if(orderid){
 					//挂单成功
 					tp.Sssts[i].Type = 1;
 					tp.Sssts[i].OrderID = orderid;
 					tp.Sssts[i].OrderTime = new Date().getTime();
-					Log(tp.Title,"交易对再次将买入的量再重新挂卖单卖出，订单编号",orderid);
+					Log(tp.Title,"交易对再次将买入的量再重新挂卖单卖出，卖出价格",tp.Sssts[i].SellPrice,"，订单编号",orderid);
 					//保存挂单信息
 					_G(tp.Name+"_Ssst_Type"+i, 1);
 					_G(tp.Name+"_Ssst_OrderID"+i, tp.Sssts[i].OrderID);
@@ -784,6 +942,7 @@ function ssstHandle(tp){
  */
 function getInDayLineLocation(tp){
 	var loc = {
+		"RecordLength":0,
 		"High":0,
 		"Low":0,
 		"Now":0,
@@ -792,6 +951,7 @@ function getInDayLineLocation(tp){
 		"ThirdRecord":{}
 	}
 	var records = GetRecords(tp, PERIOD_D1);
+	loc.RecordLength = records.length;
 	loc.LastRecord = records[records.length - 1];
 	var stoptime = loc.LastRecord.Time - 182*24*60*60*1000;
 	for(var i=records.length-1;i>=0;i--){
@@ -809,12 +969,14 @@ function getInDayLineLocation(tp){
 }
 
 /**
- * 检测当前是否可以做短线交易
+ * 检测当前是否可以在币价下跌时做短线交易
  * 1.如果当前价处于半年内日线振幅的低位的10%之内，不做
  * 2.如果当前账户余额在账户总价值的10%以内，不做
+ * 3.如果当前出现了超跌现像，不做。
+ * 4.已经进入正叉不能做。
  * @param {} tp
  */
-function checkCanDoSsst(tp, account){
+function checkCanDoSsstInDown(tp, account){
 	var ret = true;
 	var loc = getInDayLineLocation(tp);
 	if((loc.Now-loc.Low)/(loc.High-loc.Low) < 0.1){
@@ -826,6 +988,45 @@ function checkCanDoSsst(tp, account){
 	}else if(loc.SecondRecord.High/loc.LastRecord.Close >= 1.3 && tp.TPInfo.Stocks < tp.Args.MaxCoinLimit){
 		Log("当前日内超跌30%，是吸货的时候，不做短线交易");
 		ret = false;
+	}else if(DayLineCrossNum > 0){
+		Log("当前处于上升正叉阶段，不做负叉模式短线交易");
+		ret = false;
+	}
+	return ret;
+}
+
+/**
+ * 检测当前是否可以在币价上升时做短线交易
+ * 1.如果当前价处于上升验证期，交叉数小于3时，不做
+ * 2.如果当前价比正叉最高价回撤了超过15%，不做。
+ * 3.当前账户余额在不足以操作4个以个挂单，不做短线交易
+ * 4.如果当前活动持仓价值下降到了总价值的10%以下，不做短线交易
+ * 5.如果当前出现了30%以上超跌现像，不做
+ * @param {} tp
+ */
+function checkCanDoSsstInUp(tp, account){
+	var ret = true;
+	if(DayLineCrossNum == 0){
+		Log("当前处于EMA交叉数据不足期，不做短线交易");
+		ret = false;
+	}else if(DayLineCrossNum < 3){
+		Log("当前处于上升验证的时候，不做短线交易");
+		ret = false;
+	}else if(_G(tp.Name+"_HistoryHighPoint")/tp.TPInfo.TickerLast > 1.15){
+		Log("当前价比正叉最高价回撤了超过15%，不做短线交易");
+		ret = false;
+	}else if(account.Balance < tp.TPInfo.TickerLast*tp.Args.OperateFineness){
+		Log("当前账户余额在不足以操作2个以个挂单，不做短线交易");
+		ret = false;
+	}else if((tp.TPInfo.StockValue-tp.Args.MinCoinLimit*_G(tp.Name+"_AvgPrice"))/(account.Balance+tp.TPInfo.StockValue) < 0.1){
+		Log("当前活动持仓价值下降到了总价值的10%以下，不做短线交易");
+		ret = false;
+	}else{
+		var loc = getInDayLineLocation(tp);
+		if(loc.SecondRecord.High/loc.LastRecord.Close >= 1.3 && tp.TPInfo.Stocks < tp.Args.MaxCoinLimit){
+			Log("当前日内超跌30%，是吸货的时候，不做短线交易");
+			ret = false;
+		}
 	}
 	return ret;
 }
@@ -845,22 +1046,47 @@ function checkCanDoSsst(tp, account){
 function checkCanBuytoFull(tp){
 	var ret = 0;
 	var loc = getInDayLineLocation(tp);
-	if(tp.Args.CanKeepPosition){
-		var crossnum = Cross(tp, PERIOD_D1, 7, 21);
-		if(crossnum == 1 || crossnum == 2){
+	if(tp.Args.CanKeepPosition && loc.RecordLength>180){
+		//var crossnum = Cross(tp, PERIOD_D1, 7, 21);
+		//if(crossnum == 1 || crossnum == 2){
+		var nowloc = (loc.Now-loc.Low)/(loc.High-loc.Low);
+		var stockvalue = tp.TPInfo.StockValue-tp.TPInfo.TickerLast*tp.Args.MinCoinLimit;
+		var position = stockvalue/(tp.TPInfo.Balance+stockvalue);
+		if(DayLineCrossNum < 0){
+			if(nowloc <= 0.01 && position < 0.8){
+				Log("满足日K线创年半内新低之后加仓到80%的条件，可以操作买入");
+				ret = 0.8;
+			}else if(nowloc > 0.01 && nowloc <= 0.05 && position < 0.7){
+				Log("满足日K线创年半内新低之后加仓到70%的条件，可以操作买入");
+				ret = 0.7;
+			}else if(nowloc > 0.05 && nowloc <= 0.10 && position < 0.5){
+				Log("满足日K线创年半内新低之后加仓到60%的条件，可以操作买入");
+				ret = 0.6;
+			}else if(nowloc > 0.10 && nowloc <= 0.15 && position < 0.3){
+				Log("满足日K线创年半内新低之后加仓到30%的条件，可以操作买入");
+				ret = 0.3;
+			}
+		}else if(DayLineCrossNum == 1 || DayLineCrossNum == 2){
 			if(loc.LastRecord.Close > loc.LastRecord.Open && loc.SecondRecord.Close > loc.SecondRecord.Open && loc.ThirdRecord.Close > loc.ThirdRecord.Open && tp.TPInfo.Stocks < tp.Args.MaxCoinLimit){
-				var nowloc = (loc.Now-loc.Low)/(loc.High-loc.Low);
-				var position = tp.TPInfo.CostTotal/(tp.TPInfo.Balance+tp.TPInfo.CostTotal-tp.TPInfo.TickerLast*tp.Args.MinCoinLimit);
 				if(nowloc <= 0.05 && position < 0.9){
 					Log("满足日K线金叉之后加仓到90%的条件，可以操作买入");
 					ret = 0.9;
-				}else if(nowloc > 0.05 && nowloc <= 0.20 && position < 0.7){
+				}else if(nowloc > 0.05 && nowloc <= 0.10 && position < 0.8){
+					Log("满足日K线金叉之后加仓到80%的条件，可以操作买入");
+					ret = 0.8;
+				}else if(nowloc > 0.10 && nowloc <= 0.15 && position < 0.7){
 					Log("满足日K线金叉之后加仓到70%的条件，可以操作买入");
 					ret = 0.7;
+				}else if(nowloc > 0.15 && nowloc <= 0.20 && position < 0.6){
+					Log("满足日K线金叉之后加仓到60%的条件，可以操作买入");
+					ret = 0.6;
 				}else if(nowloc > 0.20 && nowloc <= 0.30 && position < 0.5){
 					Log("满足日K线金叉之后加仓到50%的条件，可以操作买入");
 					ret = 0.5;
-				}else if(nowloc > 0.30 && nowloc <= 0.40 && position < 0.3){
+				}else if(nowloc > 0.30 && nowloc <= 0.35 && position < 0.4){
+					Log("满足日K线金叉之后加仓到40%的条件，可以操作买入");
+					ret = 0.4;
+				}else if(nowloc > 0.35 && nowloc <= 0.40 && position < 0.3){
 					Log("满足日K线金叉之后加仓到30%的条件，可以操作买入");
 					ret = 0.3;
 				}else if(nowloc > 0.40 && nowloc <= 0.50 && position < 0.2){
@@ -879,13 +1105,13 @@ function checkCanBuytoFull(tp){
 		var downpc = secondrecord.High/lastrecord.Close;
 		var position = tp.TPInfo.CostTotal/(tp.TPInfo.Balance+tp.TPInfo.CostTotal);
 		if(downpc >= 1.7 && position < 0.9){
-			Log("满足时K线跌超50%加仓到90%的条件，可以操作买入");
+			Log("满足时K线跌超70%加仓到90%的条件，可以操作买入");
 			ret = 0.9;
 		}else if(downpc >= 1.6 && position < 0.8){
-			Log("满足时K线跌超50%加仓到80%的条件，可以操作买入");
+			Log("满足时K线跌超60%加仓到80%的条件，可以操作买入");
 			ret = 0.8;
 		}else if(downpc >= 1.5 && position < 0.7){
-			Log("满足时K线跌超40%加仓到70%的条件，可以操作买入");
+			Log("满足时K线跌超50%加仓到70%的条件，可以操作买入");
 			ret = 0.7;
 		}else if(downpc >= 1.4 && position < 0.6){
 			Log("满足时K线跌超40%加仓到60%的条件，可以操作买入");
@@ -893,6 +1119,10 @@ function checkCanBuytoFull(tp){
 		}else if(downpc >= 1.3 && position < 0.5){
 			Log("满足时K线跌超30%加仓到50%的条件，可以操作买入");
 			ret = 0.5;
+		}
+		if(ret){
+			//重置可以做短线交易标识,不管处于正叉还是负叉这个时候都不做短线
+			_G(tp.Name+"_Ssst_CanDo", 0);
 		}
 	}
 	return ret;
@@ -939,6 +1169,7 @@ function onTick(tp) {
     var lastBuyPrice = _G(tp.Name+"_LastBuyPrice") ? _G(tp.Name+"_LastBuyPrice") : 0;
     var lastSellPrice = _G(tp.Name+"_LastSellPrice") ? _G(tp.Name+"_LastSellPrice") : 0;
 	var historyHighPoint = _G(tp.Name+"_HistoryHighPoint") ? _G(tp.Name+"_HistoryHighPoint") : 0;
+	var canDoSsst = _G(tp.Name+"_Ssst_CanDo") ? _G(tp.Name+"_Ssst_CanDo") : 0;
     var costTotal = parseFloat((avgPrice*coinAmount).toFixed(tp.Args.PriceDecimalPlace));	//从帐户中获取当前持仓信息和平均价格算出来
 	var opAmount = 0;
     var orderid = 0;
@@ -962,6 +1193,16 @@ function onTick(tp) {
 	};
 	tp.TPInfo = tpInfo; 
 
+	//获取行情数据
+    DayLineCrossNum = Cross(tp, PERIOD_D1, 7, 21);
+    if (DayLineCrossNum > 0) {
+        if(debug) Log("当前交叉数为", DayLineCrossNum, ",处于上升通道");
+    } else {
+        if(debug) Log("当前交叉数为", DayLineCrossNum, ",处于下降通道");
+    }
+    var baseBuyPrice = lastBuyPrice ? lastBuyPrice : avgPrice;
+    var baseSellPrice = lastSellPrice ? lastSellPrice : avgPrice;
+    if(debug) Log("当前基准买入价格=", baseBuyPrice, "，当前基准卖出价格=", baseSellPrice, "，动态买入点", buyDynamicPoint, "，动态买出点", sellDynamicPoint, "，当前币价", Ticker.Sell);
 	//优选做快速买卖的决策判断
     var buytofull = checkCanBuytoFull(tp);
 	if(buytofull > 0){
@@ -969,15 +1210,21 @@ function onTick(tp) {
 		if(Account.Balance < canpay){
 			canpay = Account.Balance;
 		}
-		var mustpay =  (costTotal+Account.Balance) * buytofull
+		var mincoinlimitvalue = tp.Args.MinCoinLimit*Ticker.Last;
+		var mustpay =  (stockValue - mincoinlimitvalue + Account.Balance) * buytofull - (stockValue - mincoinlimitvalue);
 		if(canpay < mustpay){
 			mustpay = canpay;
 		}
-		Log(tp.Name+"交易对当前需要快速操作买入加仓到", buytofull,"，预计花费",mustpay);
-		isOperated = true;
-		_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_BUY);
-		orderid = tp.Exchange.Buy(-1,mustpay);    		
-	}else{
+		if(mustpay > tp.Args.MinStockAmount*Ticker.Last){
+			Log(tp.Name+"交易对当前需要快速操作买入加仓到", buytofull,"，预计花费",mustpay);
+			isOperated = true;
+			_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_BUY);
+			orderid = tp.Exchange.Buy(-1,mustpay);
+		}else{
+			Log(tp.Name+"交易对可支付金额不足于购买最小交易量，保仓操作完成。");
+		}
+	}
+	if(!orderid){
 		//如果当前K线发生了超过30%的超跌，后回升到开盘价的8成，就全平仓
 		var hourrecords = GetRecords(tp, PERIOD_H1);
 		var lastrecords = hourrecords[hourrecords.length -1];
@@ -991,17 +1238,7 @@ function onTick(tp) {
 			orderid = tp.Exchange.Sell(-1, opAmount);
 		}else{
 			//再来做慢节奏的行情判断
-			//获取行情数据
-		    var crossNum = Cross(tp, PERIOD_D1, 7, 21);
-		    if (crossNum > 0) {
-		        if(debug) Log("当前交叉数为", crossNum, ",处于上升通道");
-		    } else {
-		        if(debug) Log("当前交叉数为", crossNum, ",处于下降通道");
-		    }
-		    var baseBuyPrice = lastBuyPrice ? lastBuyPrice : avgPrice;
-		    var baseSellPrice = lastSellPrice ? lastSellPrice : avgPrice;
-		    if(debug) Log("当前基准买入价格=", baseBuyPrice, "，当前基准卖出价格=", baseSellPrice, "，动态买入点", buyDynamicPoint, "，动态买出点", sellDynamicPoint, "，当前币价", Ticker.Sell);
-		    if (crossNum < 0 && (baseBuyPrice === 0 || Ticker.Sell < baseBuyPrice * (1 - buyDynamicPoint - tp.Args.BuyFee))) {
+		    if (DayLineCrossNum < 0 && (baseBuyPrice === 0 || Ticker.Sell < baseBuyPrice * (1 - buyDynamicPoint - tp.Args.BuyFee))) {
 				if(coinAmount <= tp.Args.MaxCoinLimit){
 					//判断当前余额下可买入数量
 					var canpay = (tp.Args.MaxCoinLimit - coinAmount) * Ticker.Sell;
@@ -1030,15 +1267,19 @@ function onTick(tp) {
 				}else{
 					if(debug) Log("当前持仓数量已经达到最大持仓量", tp.Args.MaxCoinLimit, "，不再买入，看机会卖出。");
 				}
-		    } else if (coinAmount > tp.Args.MinCoinLimit+tp.Args.MinStockAmount && (crossNum > 0 && ((Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee) || Ticker.Buy < historyHighPoint*0.85 && historyHighPoint/avgPrice > 1.60 && (coinAmount-tp.Args.MinCoinLimit) > _G(tp.Name+"_lastBuycoinAmount")*0.4)) || crossNum < 0 && Ticker.Buy/avgPrice > 1.20)) {
+		    } else if (coinAmount > tp.Args.MinCoinLimit+tp.Args.MinStockAmount && (DayLineCrossNum > 0 && ((Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee) || Ticker.Buy < historyHighPoint*0.85 && historyHighPoint/avgPrice > 1.60 && (coinAmount-tp.Args.MinCoinLimit) > _G(tp.Name+"_lastBuycoinAmount")*0.4)) || DayLineCrossNum < 0 && Ticker.Buy/avgPrice > 1.20)) {
 		    	if(Ticker.Buy < historyHighPoint*0.85){
-		    		//发生大的回撤时，调整动态卖出点，期望余下的40%的仓位还可以卖个好价
-		    		var handledRetreat = _G(tp.Name+"_HandledRetreat") ? _G(tp.Name+"_HandledRetreat") : 0;
-		    		if(!handledRetreat){
-		    			sellDynamicPoint = sellDynamicPoint/2;
-		    			_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint);
-		    			_G(tp.Name+"_HandledRetreat", 1);
-		    			Log("在超过60%浮盈后币价出现了超过15%的回撤，调整动态卖出点减半，期望余下的40%的仓位还可以卖个好价");
+		    		if((coinAmount-tp.Args.MinCoinLimit) > _G(tp.Name+"_lastBuycoinAmount")*0.4){
+		    			Log("在超过60%浮盈后币价出现了超过15%的回撤，操作止盈直到40%的仓位为止。");
+		    		}else{
+			    		//发生大的回撤时，调整动态卖出点，期望余下的40%的仓位还可以卖个好价
+			    		var handledRetreat = _G(tp.Name+"_HandledRetreat") ? _G(tp.Name+"_HandledRetreat") : 0;
+			    		if(!handledRetreat){
+			    			sellDynamicPoint = sellDynamicPoint/2;
+			    			_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint);
+			    			_G(tp.Name+"_HandledRetreat", 1);
+			    			Log("在超过60%浮盈后币价出现了超过15%的回撤，调整动态卖出点减半，期望余下的40%的仓位还可以卖个好价");
+			    		}
 		    		}
 		    	}
 				var operatefineness = sellDynamicPoint == tp.Args.SellPoint ? tp.Args.OperateFineness : tp.Args.OperateFineness*(1+(Ticker.Buy-avgPrice)/avgPrice);
@@ -1069,15 +1310,55 @@ function onTick(tp) {
 						if(debug) Log("当前已经完成平仓，但币价继续上升，适当调整买入指导价以防止指导价过低无法买入。从",lastBuyPrice,"调到",goodbuyprice);
 			    	}
 		    	}
-				if (crossNum < 0 ){
-					if(debug) Log("价格没有下跌到买入点，继续观察行情...");
-				}else{
-					if(debug) Log("价格没有上涨到卖出点，继续观察行情...");
+				if (DayLineCrossNum < 0 ){
+					//取消正叉时候的短线挂单
+					if(canDoSsst == 2){
+						if(tp.Sssts.length > 0){
+							Log("进入死叉,还有正叉阶段的短线交易挂单存在，取消挂单");
+							for(var i = 0;i<tp.Sssts.length;i++){
+								tp.Exchange.CancelOrder(tp.Sssts[i].OrderID);
+							}
+							tp.Sssts = [];
+						}else{
+							//重置可以做短线交易标识
+							canDoSsst = 0;
+							_G(tp.Name+"_Ssst_CanDo", canDoSsst);
+						}
+					}
+				}else if (DayLineCrossNum > 2 ){
+					//取消负叉时候的短线挂单
+					if(canDoSsst == 1){
+						if(tp.Sssts.length > 0){
+							Log("进入金叉,还有负叉阶段的短线交易挂单存在，取消挂单");
+							for(var i = 0;i<tp.Sssts.length;i++){
+								tp.Exchange.CancelOrder(tp.Sssts[i].OrderID);
+							}
+							tp.Sssts = [];
+						}else{
+							//重置可以做短线交易标识
+							canDoSsst = 0;
+							_G(tp.Name+"_Ssst_CanDo", canDoSsst);
+						}
+					}
 					//调整买入后的量高价格
 					if(Ticker.Buy > historyHighPoint){
 						_G(tp.Name+"_HistoryHighPoint", Ticker.Buy);
 						if(_G(tp.Name+"_HandledRetreat")) _G(tp.Name+"_HandledRetreat", 0);	//币价回升重置回撤处理
+						
+						//检测当前是否可以做SSST
+						if(!canDoSsst && checkCanDoSsstInUp(tp, Account)){
+							canDoSsst = 2;
+							_G(tp.Name+"_Ssst_CanDo", canDoSsst);
+						}
+
+						//处于正叉行情，且币价创新高的短线交易处理
+						if(canDoSsst) checkSsstInPriceUp(tp);
+					}else{
+						//当币价发生了回撤,检测买入挂单是否成功
+						checkSsstBuyFinish(tp);
 					}
+				}else{
+					if(debug) Log("当前处于EMA不可认别阶段。");
 				}
     		}
     	}
@@ -1135,12 +1416,12 @@ function showStatus(nowtp){
 		var accounttable1 = {};
 		accounttable1.type="table";
 		accounttable1.title = "价格信息";
-		accounttable1.cols = ['交易对','账户余额','冻结币数','长线持仓量','持仓均价','持仓成本','当前币价','持币价值','上次买入价','上次卖出价','买入点','卖出点'];
+		accounttable1.cols = ['交易对','账户余额','冻结余额','冻结币数','长线持仓量','持仓均价','持仓成本','当前币价','持币价值','上次买入价','上次卖出价','买入点','卖出点'];
 		var rows = [];
 		for(var r=0;r<TradePairs.length;r++){
 			var tp = TradePairs[r];
 			var i = tp.TPInfo;
-			rows.push([tp.Title, parseFloat(i.Balance).toFixed(8), parseFloat((i.FrozenStocks+0).toFixed(8)), parseFloat((i.Stocks+0).toFixed(8)), i.AvgPrice, i.CostTotal, 
+			rows.push([tp.Title, parseFloat(i.Balance).toFixed(8), parseFloat(i.FrozenBalance).toFixed(8), parseFloat((i.FrozenStocks+0).toFixed(8)), parseFloat((i.Stocks+0).toFixed(8)), i.AvgPrice, i.CostTotal, 
 			i.TickerLast, i.StockValue,  parseFloat(i.LastBuyPrice).toFixed(tp.Args.PriceDecimalPlace),  parseFloat(i.LastSellPrice).toFixed(tp.Args.PriceDecimalPlace),(i.BuyDynamicPoint+0).toFixed(3),(i.SellDynamicPoint+0).toFixed(3)]);
 		}
 		accounttable1.rows = rows;
@@ -1163,8 +1444,8 @@ function showStatus(nowtp){
 		rows = [];
 		for(var r=0;r<TradePairs.length;r++){
 			var tp = TradePairs[r];
-			for(var i = 0;i<THRID_ORDERY_LEVELS.length;i++){
-				rows.push([tp.Title, THRID_ORDERY_LEVELS[i], '-', '-', '-', '-', '-', '-', '-']);
+			for(var i = 0;i<ThridOrderLevels.length;i++){
+				rows.push([tp.Title, ThridOrderLevels[i], '-', '-', '-', '-', '-', '-', '-']);
 			}
 		}
 		accounttable3.rows = rows;
@@ -1175,7 +1456,7 @@ function showStatus(nowtp){
 		for(var r=0;r<accounttable1.rows.length;r++){
 			if(nowtp.Title == accounttable1.rows[r][0]){
 				var i = nowtp.TPInfo;
-				accounttable1.rows[r] =[nowtp.Title, parseFloat(i.Balance).toFixed(8), parseFloat((i.FrozenStocks+0).toFixed(8)), parseFloat((i.Stocks+0).toFixed(8)), i.AvgPrice, i.CostTotal, 
+				accounttable1.rows[r] =[nowtp.Title, parseFloat(i.Balance).toFixed(8), parseFloat(i.FrozenBalance).toFixed(8), parseFloat((i.FrozenStocks+0).toFixed(8)), parseFloat((i.Stocks+0).toFixed(8)), i.AvgPrice, i.CostTotal, 
 				i.TickerLast, i.StockValue,  parseFloat(i.LastBuyPrice).toFixed(nowtp.Args.PriceDecimalPlace), parseFloat(i.LastSellPrice).toFixed(nowtp.Args.PriceDecimalPlace),(i.BuyDynamicPoint+0).toFixed(3),(i.SellDynamicPoint+0).toFixed(3)];
 				break;
 			}	
