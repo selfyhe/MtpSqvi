@@ -185,7 +185,7 @@ function parseArgsJson(json){
 					if(!_G(tp.Name+"_OperatingStatus")) _G(tp.Name+"_OperatingStatus",OPERATE_STATUS_NONE);
 					if(!_G(tp.Name+"_BeforeBuyingStocks")) _G(tp.Name+"_BeforeBuyingStocks",0);	//买入前的币数量
 					if(!_G(tp.Name+"_AddTime")) _G(tp.Name+"_AddTime",_D());
-					if(!_G(tp.Name+"_Ssst_CanDo")) _G(tp.Name+"_Ssst_CanDo",2);	//短线交易开关,值为：0关闭，1打开，2为自动
+					if(!_G(tp.Name+"_Ssst_CanDo")) _G(tp.Name+"_Ssst_CanDo",1);	//短线交易开关,值为：0关闭，1打开，2为自动
 					_G(tp.Name+"_Debug",args[i].Debug);
 					ret = true;
 				}else{
@@ -372,9 +372,9 @@ function changeDataForBuy(tp,account,order){
 	var avgPrice = _G(tp.Name+"_AvgPrice");
 	var beforeBuyingStocks = _G(tp.Name+"_BeforeBuyingStocks");
 	if(order.Status === ORDER_STATE_CLOSED ){
-		Log(tp.Title,"交易对买入订单",_G(tp.Name+"_LastOrderId"),"交易成功!成交均价：",order.AvgPrice,"，挂单买入：",order.Amount,"，买到数量：",order.DealAmount);			
+		Log(tp.Title,"交易对订单",_G(tp.Name+"_LastOrderId"),"买入交易已经成功!成交均价：",order.AvgPrice,"，挂单买入：",order.Amount,"，买到数量：",order.DealAmount);			
 	}else{
-		Log(tp.Title,"交易对买入订单",_G(tp.Name+"_LastOrderId"),"部分成交!成交均价：",order.AvgPrice,"，挂单买入：",order.Amount,"，买到数量：",order.DealAmount);		
+		Log(tp.Title,"交易对订单",_G(tp.Name+"_LastOrderId"),"买入交易已经部分成交!成交均价：",order.AvgPrice,"，挂单买入：",order.Amount,"，买到数量：",order.DealAmount);		
 	}
 	
 	var flag = false;	
@@ -721,7 +721,7 @@ function checkSsstBuyFinish(tp){
 		if(tp.Sssts[i].Type == 2){
 			var order = tp.Exchange.GetOrder(tp.Sssts[i].OrderID);
 			if(order.Status === ORDER_STATE_CLOSED){
-				Log(tp.Title,"交易对再次买入限价挂单已经成功，订单编号",tp.Sssts[i].OrderID);
+				Log(tp.Title,"交易对再次限价挂单买入交易已经成功，订单编号",tp.Sssts[i].OrderID);
 				//列新交易次数
 				var tradeTimes = _G(tp.Name+"_BuyTimes");
 				tradeTimes++;
@@ -959,8 +959,8 @@ function cancelAllSsstSellOrder(tp, beforeBuyingStocks){
 function cancelAllSsstBuyOrder(tp){
 	//检测当前是否存在短线交易
 	if(tp.Sssts.length ){
-		//存在，检测当前卖单交易是否完成,没有完成强制取消挂单
-		Log(tp.Title,"交易对死叉时存在短线交易卖出挂单，现检测当前交易是否完成,没有完成强制取消挂单。");
+		//存在，检测当前买单交易是否完成,没有完成强制取消挂单
+		Log(tp.Title,"交易对死叉时存在短线交易买入挂单，现检测当前交易是否完成,没有完成强制取消挂单。");
 		//再次取消所有依然存在的挂单,包括买单
 		for(var i=0;i<tp.Sssts.length;i++){
 			if(tp.Sssts[i].Type == 2 && tp.Sssts[i].OrderID) tp.Exchange.CancelOrder(tp.Sssts[i].OrderID);
