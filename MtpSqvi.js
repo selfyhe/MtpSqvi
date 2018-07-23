@@ -5,7 +5,7 @@
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
 3.在保持长线策略的同时增加了短线交易操作、低位保仓和日线金叉保仓操作、超跌超底操作，使得收盈能力大大提升。
 4.严控保仓风险，控制保仓比例的严格执行，防止贪婪带来风险。
-5.增加托管服务能力增加，为托管服务的开展提供基础保障
+5.为了实现商业化增加托管服务能力功能，为托管服务的开展提供基础保障
 
 支持多个交易对，参数通过JSON传递过来
 Json	策略参数JSON内容	JSON内容为以下多个交易对的数组JSON	字符串型(string)
@@ -33,7 +33,7 @@ Debug	调试状态	是否打开调试输出日志	数字型(number)	0
 NewAvgPrice	更新持仓平均价格	只更新均价不更新上一次买入卖出价，用于手动操作买入之后的均价调整，填写格式：TradePairName|Price    字符串型(string) _|_
 GuideBuyPrice	更新指导买入价格    只更新上一个买入价，不更新持仓均价，用于想调节买入点，填写格式：TradePairName|Price	字符串型(string) _|_
 SsstSwitch	短线交易开关	控制短线交易操作是否可以进行，状态为：0关闭，1打开，2为自动，值的填写格式如下:TradePairName(更新全部交易对用ALL)|0/1/2	字符串型(string) _|_
-ManualOperation	人工操作	适用于账户终始化、结算平仓和紧急情况处理，值的填写格式如下:TradePairName|Type(1卖出/2买入)|Price|Amount	字符串型(string) _|_|_|_
+ManualOperation	MO操作	适用于账户终始化、结算平仓和紧急情况处理，值的填写格式如下:TradePairName|Type(0取消/1卖出/2买入)|Price/OrderID|Amount	字符串型(string) _|_|_|_
 Debug	更新调试状态	值的填写格式如下:TradePairName(更新全部交易对用ALL)|0/1 字符串型(string) ALL|0
 ************************************************/
 
@@ -73,6 +73,9 @@ var ArgTables;		//已经处理好的用于显示的参数表，当参数更新�
 var AccountTables;	//当前的账户信息表，如果当前已经有表，只要更新当前交易对，这样可以加快刷新速度，减少内存使用
 var LastRecords = {"DayRecords":null,"HourRecords":null};
 var DayLineCrossNum = 0;	//当前日线交叉数
+var MOOrders = [];	//当前MO交易挂单
+var TpMOOrders = [];	//当前交易对MO交易挂单详情
+
 
 //取得交易所对像
 function getExchange(name){
@@ -189,7 +192,7 @@ function parseArgsJson(json){
 					if(!_G(tp.Name+"_BeforeBuyingStocks")) _G(tp.Name+"_BeforeBuyingStocks",0);	//买入前的币数量
 					if(!_G(tp.Name+"_AddTime")) _G(tp.Name+"_AddTime",_D());
 					if(!_G(tp.Name+"_Ssst_CanDo")) _G(tp.Name+"_Ssst_CanDo",1);	//短线交易开关,值为：0关闭，1打开，2为自动
-					_G(tp.Name+"_Debug",args[i].Debug);
+					if(!_G(tp.Name+"_Debug")) _G(tp.Name+"_Debug",0);
 					ret = true;
 				}else{
 					Log("未匹配交易对参数：",tp.Name,"请确认交易对的添加是否正确！");
@@ -204,7 +207,7 @@ function parseArgsJson(json){
 function init(){
 	//重置日志
     LogReset();
-	SetErrorFilter("403:|502:|503:|Forbidden|tcp|character|unexpected|network|timeout|WSARecv|Connect|GetAddr|no such|reset|http|received|EOF|reused");
+	SetErrorFilter("429:|403:|502:|503:|Forbidden|tcp|character|unexpected|network|timeout|WSARecv|Connect|GetAddr|no such|reset|http|received|EOF|reused");
 
 	Log("启动多交易对现货长线量化价值投资策略程序...");  
 
@@ -215,7 +218,30 @@ function init(){
 	parseArgsJson(Json);
 
 	//初始化Ssst对像
-	initSsst();
+	for(var i=0;i<TradePairs.length;i++){
+		var tp = TradePairs[i];
+		if(_G(tp.Name+"_Ssst_CanDo")){
+			for(var i=0;i<3;i++){
+				var ssst = new SsstData();
+				ssst.OrderID = _G(tp.Name+"_Ssst_OrderID"+i);
+				if(ssst.OrderID){
+					ssst.Type = _G(tp.Name+"_Ssst_Type"+i);
+					ssst.Level = _G(tp.Name+"_Ssst_Level"+i);
+					ssst.BuyPrice = _G(tp.Name+"_Ssst_BuyPrice"+i);
+					ssst.Amount = _G(tp.Name+"_Ssst_Amount"+i);
+					ssst.SellPrice = _G(tp.Name+"_Ssst_SellPrice"+i);
+					ssst.OrderTime = _G(tp.Name+"_Ssst_OrderTime"+i);
+					tp.Sssts.push(ssst);
+				}
+			}
+		}
+	}
+	
+	//初始化MO挂单
+	var moorders = _G("MOOrders");
+	if(moorders && moorders.length){
+		MOOrders = moorders;
+	}
 }
 
 //获取K线记录
@@ -359,12 +385,18 @@ function checkSellFinish(tp,account){
 		if(order.DealAmount){
 			changeDataForSell(tp,account,order);
 		}else{
-			Log(tp.Title,"交易对订单",lastOrderId,"未有成交!卖出价格：",order.Price,"，当前价：",GetTicker(tp).Last,"，价格差：",_N(order.Price - GetTicker(tp).Last, tp.Args.PriceDecimalPlace));
+			if(order.Price){
+				Log(tp.Title,"交易对订单",lastOrderId,"未有成交!卖出价格：",order.Price,"，当前价：",GetTicker(tp).Last,"，价格差：",_N(order.Price - GetTicker(tp).Last, tp.Args.PriceDecimalPlace));
+			}else{
+				Log(tp.Title,"交易对市价卖出订单",lastOrderId,"未有成交!");
+			}
 		}
-		//撤消没有完成的订单，如果交叉周期在5以内不急着取消挂单        
-		tp.Exchange.CancelOrder(lastOrderId);
-		Log(tp.Title,"交易对取消卖出订单：",lastOrderId);
-		Sleep(1300);
+		//撤消没有完成的限价订单
+		if(order.Price){
+			tp.Exchange.CancelOrder(lastOrderId);
+			Log(tp.Title,"交易对取消卖出订单：",lastOrderId);
+			Sleep(1300);
+		}
 	}
     return ret;
 }
@@ -532,12 +564,18 @@ function checkBuyFinish(tp,account){
 			//处理买入成功后的数据调整
 			changeDataForBuy(tp,account,order);
 		}else{
-			Log(tp.Title,"交易对买入订单",lastOrderId,"未有成交!订单买入价格：",order.Price,"，当前卖一价：",GetTicker(tp).Sell,"，价格差：",_N(order.Price - GetTicker(tp).Sell, tp.Args.PriceDecimalPlace));
+			if(order.Price){
+				Log(tp.Title,"交易对买入订单",lastOrderId,"未有成交!订单买入价格：",order.Price,"，当前卖一价：",GetTicker(tp).Sell,"，价格差：",_N(order.Price - GetTicker(tp).Sell, tp.Args.PriceDecimalPlace));
+			}else{
+				Log(tp.Title,"交易对市价买入订单",lastOrderId,"未有成交!");
+			}
 		}
-		//撤消没有完成的订单
-		tp.Exchange.CancelOrder(lastOrderId);
-		Log(tp.Title,"交易对取消未完成的买入订单：",lastOrderId);
-		Sleep(1300);
+		//撤消没有完成的限价订单
+		if(order.Price){
+			tp.Exchange.CancelOrder(lastOrderId);
+			Log(tp.Title,"交易对取消未完成的买入订单：",lastOrderId);
+			Sleep(1300);
+		}
 	}
 }
 
@@ -562,7 +600,7 @@ function commandProc(){
 		var tp;
 		if(cmds.length === 2){
 			values = cmds[1].split("|");
-			if(values.length === 2){
+			if(values.length >= 2){
 				if(values[0].toUpperCase() != "ALL"){
 					tp = getTradePair(values[0]);
 					if(!tp){
@@ -605,64 +643,75 @@ function commandProc(){
 				}
 				AccountTables = null;
 			}else if(cmds[0] == "ManualOperation"){
-				if(values.length != 4 || isNaN(values[2]) || isNaN(values[3]) || [1,2].indexOf(parseInt(values[1])) == -1){
-					Log("提供的值的格式不对，正确的格式如下:TradePairName|Type(1卖出/2买入)|Price|Amount");
+				var checkarg = true;
+				if(values.length < 3 || values.length > 4 || ['0','1','2'].indexOf(values[1]) == -1){
+					checkarg = false;
+				}else if(values.length == 4 && (isNaN(values[2]) ||  isNaN(values[3]))){
+					checkarg = false;
+				}
+				if(!checkarg){
+					Log("提供的值的格式不对，正确的填写格式如下:TradePairName|Type(0取消/1卖出/2买入)|Price/OrderID|Amount");
 				}else{
-					Log("接收到策略互动操作要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',values[1] == '1' ? '卖出' : '买入',values[0],"交易对",values[3],"个币。");
-					var orderid = 0;
-					var Account = GetAccount(tp);
-					var Ticker = GetTicker(tp);
-					var Price = -1;
-					if(values[2] != "-1") Price = parseFloat(values[2]);
-					var Amount = parseFloat(values[3]);
-					if(parseInt(values[1]) == 1){
-						if((Account.Stocks - tp.Args.MinCoinLimit) < Amount){
-							Log(tp.Name+"交易对的可卖出数量不足",Amount,"，卖出失败。 #FF0000");
-						}else if(Price != -1 && Price < _G(tp.Name+"_AvgPrice")){
-							Log(tp.Name+"交易对计划卖出价格",Price,"低于成本价",_G(tp.Name+"_AvgPrice"),"，卖出失败。 #FF0000");
-						}else if(Price != -1 && Price < Ticker.Last*0.99){
-							Log(tp.Name+"交易对计划卖出价格",Price,"低于当前价格",Ticker.Last,"的99%，卖出失败。 #FF0000");
-						}else{
-							orderid = tp.Exchange.Sell(Price, Amount);
-							if(orderid){
-								Log(tp.Name+"交易对应策略互动操作要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交成功，订单编号：",orderid);
-								_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_SELL);
-							}else{
-								Log(tp.Name+"交易对应策略互动操作要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交失败。");
-							}
-						}
+					if(values[1] == "0"){
+						//取消挂单
+						Log("接收到策略互动操作要求取消MO交易挂单，订单编号",values[2]);
+						tp.Exchange.CancelOrder(values[2]);
 					}else{
-						var canpay = (tp.Args.MaxCoinLimit - Account.Stocks) * Ticker.Sell;
-						if(Account.Balance < canpay){
-							canpay = Account.Balance;
-						}
-						var canbuy = canpay/Ticker.Sell;
-						canbuy = _N(canbuy, tp.Args.StockDecimalPlace);
-						if(canbuy < Amount){
-							Log(tp.Name+"交易对的可买入数量为",canbuy,"不足",Amount,"，买入操作失败。 #FF0000");
-						}else if(Price != -1 && Price > _G(tp.Name+"_AvgPrice")*1.20){
-							Log(tp.Name+"交易对计划买入价格",Price,"高于成本价",_G(tp.Name+"_AvgPrice"),"的1.2倍，买入操作失败。 #FF0000");
-						}else if(Price != -1 && Price > Ticker.Last*1.01){
-							Log(tp.Name+"交易对计划买入价格",Price,"高于当前价格",Ticker.Last,"的1.01倍，买入操作失败。 #FF0000");
+						Log("接收到策略互动操作要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',values[1] == '1' ? '卖出' : '买入',values[0],"交易对",values[3],"个币。");
+						var orderid = 0;
+						var Account = GetAccount(tp);
+						var Ticker = GetTicker(tp);
+						var Price = -1;
+						if(values[2] != "-1") Price = parseFloat(values[2]);
+						var Amount = parseFloat(values[3]);
+						if(values[1] == "1"){
+							if((Account.Stocks - tp.Args.MinCoinLimit) < Amount){
+								Log(tp.Name+"交易对的可卖出数量不足",Amount,"，卖出失败。 #FF0000");
+							}else if(Price != -1 && Price < _G(tp.Name+"_AvgPrice")){
+								Log(tp.Name+"交易对计划卖出价格",Price,"低于成本价",_G(tp.Name+"_AvgPrice"),"，卖出失败。 #FF0000");
+							}else if(Price != -1 && Price < Ticker.Last*0.99){
+								Log(tp.Name+"交易对计划卖出价格",Price,"低于当前价格",Ticker.Last,"的99%，卖出失败。 #FF0000");
+							}else{
+								orderid = tp.Exchange.Sell(Price, Amount);
+								if(orderid){
+									Log(tp.Name+"交易对应策略互动操作要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交成功，订单编号：",orderid);
+								}else{
+									Log(tp.Name+"交易对应策略互动操作要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交失败。");
+								}
+							}
 						}else{
-							var msg = tp.Name+"交易对应策略互动操作要求以";
-							if(values[2] == '-1'){
-								msg = "市价买入价值"+values[3]+"的币";
-							}else{
-								msg = values[2]+"的价格买入"+values[3]+"个币";
+							var canpay = (tp.Args.MaxCoinLimit - Account.Stocks) * Ticker.Sell;
+							if(Account.Balance < canpay){
+								canpay = Account.Balance;
 							}
-							orderid = tp.Exchange.Buy(Price, Amount);
-							if(orderid){
-								Log(msg,"，订单提交成功，订单编号：",orderid);
-								_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_BUY);
-								_G(tp.Name+"_BeforeBuyingStocks",Account.Stocks);
+							var canbuy = canpay/Ticker.Sell;
+							canbuy = _N(canbuy, tp.Args.StockDecimalPlace);
+							if(canbuy < Amount){
+								Log(tp.Name+"交易对的可买入数量为",canbuy,"不足",Amount,"，买入操作失败。 #FF0000");
+							}else if(Price != -1 && Price > _G(tp.Name+"_AvgPrice")*1.20){
+								Log(tp.Name+"交易对计划买入价格",Price,"高于成本价",_G(tp.Name+"_AvgPrice"),"的1.2倍，买入操作失败。 #FF0000");
+							}else if(Price != -1 && Price > Ticker.Last*1.01){
+								Log(tp.Name+"交易对计划买入价格",Price,"高于当前价格",Ticker.Last,"的1.01倍，买入操作失败。 #FF0000");
 							}else{
-								Log(msg,"，订单提交失败。");
+								var msg = tp.Name+"交易对应策略互动操作要求以";
+								if(values[2] == '-1'){
+									msg = "市价买入价值"+values[3]+"的币";
+								}else{
+									msg = values[2]+"的价格买入"+values[3]+"个币";
+								}
+								orderid = tp.Exchange.Buy(Price, Amount);
+								if(orderid){
+									Log(msg,"，订单提交成功，订单编号：",orderid);
+									_G(tp.Name+"_BeforeBuyingStocks",Account.Stocks);
+								}else{
+									Log(msg,"，订单提交失败。");
+								}
 							}
 						}
-					}
-					if(orderid){
-						_G(tp.Name+"_LastOrderId",orderid);
+						if(orderid){
+							//将交易编号推入MO交易挂单列表中。
+							MOOrders.push(tp.Name+"|"+orderid);
+						}
 					}
 				}
 			}else if(cmds[0] == "Debug"){
@@ -802,29 +851,6 @@ function checkSsstBuyFinish(tp){
 					_G(tp.Name+"_Ssst_Type"+i, 1);
 					_G(tp.Name+"_Ssst_OrderID"+i, tp.Sssts[i].OrderID);
 					_G(tp.Name+"_Ssst_OrderTime"+i, tp.Sssts[i].OrderTime);	
-				}
-			}
-		}
-	}
-}
-
-//初始化Ssst对像
-function initSsst(){
-	//读取短线交易相关数据
-	for(var i=0;i<TradePairs.length;i++){
-		var tp = TradePairs[i];
-		if(_G(tp.Name+"_Ssst_CanDo")){
-			for(var i=0;i<3;i++){
-				var ssst = new SsstData();
-				ssst.OrderID = _G(tp.Name+"_Ssst_OrderID"+i);
-				if(ssst.OrderID){
-					ssst.Type = _G(tp.Name+"_Ssst_Type"+i);
-					ssst.Level = _G(tp.Name+"_Ssst_Level"+i);
-					ssst.BuyPrice = _G(tp.Name+"_Ssst_BuyPrice"+i);
-					ssst.Amount = _G(tp.Name+"_Ssst_Amount"+i);
-					ssst.SellPrice = _G(tp.Name+"_Ssst_SellPrice"+i);
-					ssst.OrderTime = _G(tp.Name+"_Ssst_OrderTime"+i);
-					tp.Sssts.push(ssst);
 				}
 			}
 		}
@@ -1312,7 +1338,7 @@ function showStatus(nowtp){
 		var accounttable3 = {};
 		accounttable3.type="table";
 		accounttable3.title = "短线交易挂单";
-		accounttable3.cols = ['交易对','档次','挂单交易','买入价','卖出价','当前币价','交易量','订单编号','挂单时间'];
+		accounttable3.cols = ['交易对','档次','交易类型','买入价','卖出价','当前币价','交易量','订单编号','挂单时间'];
 		rows = [];
 		for(var r=0;r<TradePairs.length;r++){
 			var tp = TradePairs[r];
@@ -1322,6 +1348,18 @@ function showStatus(nowtp){
 		}
 		accounttable3.rows = rows;
 		accounttables.push(accounttable3);
+		var accounttable4 = {};
+		accounttable4.type="table";
+		accounttable4.title = "当前MO交易挂单";
+		accounttable4.cols = ['交易对','订单编号','交易类型','买入价','卖出价','当前币价','交易量','完成量','挂单时间'];
+		rows = [];
+		if(TpMOOrders && TpMOOrders.length){
+			for(var r=0;r<TpMOOrders.length;r++){
+				rows.push(TpMOOrders[i].split("|"));
+			}
+		}
+		accounttable4.rows = rows;
+		accounttables.push(accounttable4);
 		AccountTables = accounttables;
 	}else{
 		var accounttable1 = AccountTables[0];
@@ -1357,8 +1395,79 @@ function showStatus(nowtp){
 				}
 			}	
 		}		
+		var accounttable4 = AccountTables[3];
+		var newrows = [];
+		if(MOOrders && MOOrders.length){
+			//先保存非本交易的所有挂单信息
+			for(var r=0;r<accounttable4.rows.length;r++){
+				if(nowtp.Title != accounttable4.rows[r][0]){
+					newrows.push(accounttable4.rows[r]);
+				}	
+			}
+			//然后添加本交易对已经处理好的挂单信息
+			for(var r=0;r<TpMOOrders.length;r++){
+				newrows.push(TpMOOrders[r].split("|"));
+			}
+		}
+		accounttable4.rows = newrows;
 	}
 	LogStatus("`" + JSON.stringify(ArgTables)+"`\n`" + JSON.stringify(AccountTables)+"`\n 策略累计收益："+ _G("TotalProfit")+ "\n 策略启动时间："+ StartTime + " 累计刷新次数："+ TickTimes + " 最后刷新时间："+ _D());	
+}
+
+//MO挂单管理
+function checkMOOrder(tp){
+	if(MOOrders && MOOrders.length){
+		//更新交易对的订单
+		var newmoorders = [];
+		TpMOOrders = [];
+		for(var i=0;i<MOOrders.length;i++){
+			var moorder = MOOrders[i];
+			var keys = moorder.split("|");
+			if(tp.Name == keys[0]){
+				//更新本交易的挂单列表
+				var order = tp.Exchange.GetOrder(keys[1]);
+				if(order.Status === ORDER_STATE_PENDING ){
+					//对未完成的订单更新订单
+					//['交易对','订单编号','交易类型','买入价','卖出价','当前币价','交易量','完成量','挂单时间'];
+					var tporder = tp.Title+"|"+keys[1];
+					if(order.Type == ORDER_TYPE_SELL){
+						tporder += "|卖出|"+tp.TPInfo.AvgPrice;
+						if(order.Price){
+							tporder += "|"+order.Price;
+						}else{
+							tporder += "|市价"+order.Price;
+						}
+					}else{
+						tporder += "|买入"; 
+						if(order.Price){
+							tporder += "|"+order.Price+"|-";
+						}else{
+							tporder += "|市价"+order.Price+"|-";
+						}
+					}
+					tporder += "|"+tp.TPInfo.TickerLast+"|"+order.Amount+"|"+order.DealAmount+"|"+_D(order.Info["created-at"]);
+					TpMOOrders.push(tporder);
+					newmoorders.push(moorder);
+				}else{
+					//对已经完成的有成交的订单进行处理，不管是已经完成或是取消状态
+					if(order.DealAmount){
+						if(order.Type == ORDER_TYPE_SELL){
+							changeDataForSell(tp,account,order);
+						}else{
+							changeDataForBuy(tp,account,order);
+						}
+					}
+				}			
+			}else{
+				//恢复非本交易对的所有挂单信息
+				newmoorders.push(moorder);
+			}
+		}
+		//更新全局变量当中的列表
+		MOOrders = newmoorders;
+		//存储到本地存储
+		_G("MOOrders", MOOrders);
+	}
 }
 
 function main() {
@@ -1378,6 +1487,8 @@ function main() {
 			ssstHandle(tp);
 			//操作长线交易
 			if(!onTick(tp)) break;
+			//MO交易挂单的管理
+			checkMOOrder(tp);
 			//操作状态显示
 			tp.LastUpdate = _D();
 			showStatus(tp);
