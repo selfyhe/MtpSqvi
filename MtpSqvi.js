@@ -696,7 +696,7 @@ function commandProc(){
 							if(Account.Balance < canpay){
 								canpay = Account.Balance;
 							}
-							var canbuy = canpay/Ticker.Sell;
+							var canbuy = canpay/buyprice;
 							canbuy = _N(canbuy, tp.Args.StockDecimalPlace);
 							if(canbuy < Amount){
 								Log(tp.Name+"交易对的可买入数量为",canbuy,"不足",Amount,"，买入操作失败。 #FF0000");
