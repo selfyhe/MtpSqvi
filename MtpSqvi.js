@@ -690,7 +690,9 @@ function commandProc(){
 								}
 							}
 						}else{
-							var canpay = (tp.Args.MaxCoinLimit - Account.Stocks) * Ticker.Sell;
+							var buyprice = Ticker.Sell;
+							if(Price != -1) buyprice = Price;
+							var canpay = (tp.Args.MaxCoinLimit - Account.Stocks) * buyprice;
 							if(Account.Balance < canpay){
 								canpay = Account.Balance;
 							}
