@@ -1045,6 +1045,7 @@ function cancelAllSsstSellOrder(tp, beforeBuyingStocks){
 			//有挂单没有完成，将挂单数量和金额计入持仓均价
 			var coinAmount = beforeBuyingStocks + Amount;
 			//计算持仓总价
+			var avgPrice = _G(tp.Name+"_AvgPrice");
 			var Total = parseFloat((avgPrice*beforeBuyingStocks + BuyPrice * Amount*(1+tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace));
 			
 			//计算并调整平均价格
@@ -1449,6 +1450,7 @@ function checkMOOrder(tp){
 				//更新本交易的挂单列表
 				var orderid = keys[1];
 				var order = tp.Exchange.GetOrder(orderid);
+				if(!order) continue;	//如果订单已经不存在（可以有被APP取消），就跳过
 				if(order.Status === ORDER_STATE_PENDING ){
 					//对未完成的订单更新订单
 					//['交易对','订单编号','交易类型','买入价','卖出价','当前币价','交易量','完成量','挂单时间'];
