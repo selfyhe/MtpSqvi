@@ -414,48 +414,50 @@ function changeDataForBuy(tp,account,order){
 	
 	var flag = false;	
 	if(beforeBuyingStocks > tp.Args.MinCoinLimit+tp.Args.TradeLimits.MPOMinSellAmount){
-		//检测当前是否存在短线交易
-		if(tp.Sssts.length ){
-			//存在，检测当前交易是否完成,没有完成强制取消挂单
-			Log(tp.Title,"交易对先前存在短线交易挂单，现检测当前交易是否完成,没有完成强制取消挂单。");
-			var ret = checkSsstSellFinish(tp, true);
-			if(!ret){
-				//如果挂单还没有取消成功,再次尝试取消挂单
-				for(var i=0;i<tp.Sssts.length;i++){
-					tp.Exchange.CancelOrder(tp.Sssts[i].OrderID);
+		if(order.DealAmount > tp.Args.OperateFineness){
+			//检测当前是否存在短线交易
+			if(tp.Sssts.length ){
+				//存在，检测当前交易是否完成,没有完成强制取消挂单
+				Log(tp.Title,"交易对先前存在短线交易挂单，现检测当前交易是否完成,没有完成强制取消挂单。");
+				var ret = checkSsstSellFinish(tp, true);
+				if(!ret){
+					//如果挂单还没有取消成功,再次尝试取消挂单
+					for(var i=0;i<tp.Sssts.length;i++){
+						tp.Exchange.CancelOrder(tp.Sssts[i].OrderID);
+					}
 				}
 			}
-		}
-		//再次检测是否有未完成的挂单
-		if(tp.Sssts.length){
-			var Amount = 0;
-			var BuyPrice = tp.Sssts[0].BuyPrice;
-			for(var i=0;i<tp.Sssts.length;i++){
-				Amount += tp.Sssts[i].Amount;
+			//再次检测是否有未完成的挂单
+			if(tp.Sssts.length){
+				var Amount = 0;
+				var BuyPrice = tp.Sssts[0].BuyPrice;
+				for(var i=0;i<tp.Sssts.length;i++){
+					Amount += tp.Sssts[i].Amount;
+				}
+				Log(tp.Title,"交易对先前的短线交易挂单未完成，现将其未完成的量",Amount,"按",BuyPrice,"买入计入长线核算。");
+				//有挂单没有完成，将挂单数量和金额计入持仓均价
+				var coinAmount = beforeBuyingStocks + Amount;
+				//计算持仓总价
+				var Total = parseFloat((avgPrice*beforeBuyingStocks + BuyPrice * Amount*(1+tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace));
+				
+				//计算并调整平均价格
+				avgPrice = parseFloat((Total / coinAmount).toFixed(tp.Args.PriceDecimalPlace));
+				_G(tp.Name+"_AvgPrice",avgPrice);
+				
+				Log(tp.Title,"交易对先前的短线交易挂单买入价：",BuyPrice,"，未卖出数量：",Amount,"，长线持仓价格调整到：",avgPrice,"，总持仓数量：",coinAmount,"，总持币成本：",Total);			
+				
+				//保存每次买入之后币的数量
+				_G(tp.Name+"_lastBuycoinAmount", coinAmount);
+				
+				//调整新的beforeBuyingStocks变量，以方便下面的计算
+				beforeBuyingStocks = coinAmount;
 			}
-			Log(tp.Title,"交易对先前的短线交易挂单未完成，现将其未完成的量",Amount,"按",BuyPrice,"买入计入长线核算。");
-			//有挂单没有完成，将挂单数量和金额计入持仓均价
-			var coinAmount = beforeBuyingStocks + Amount;
-			//计算持仓总价
-			var Total = parseFloat((avgPrice*beforeBuyingStocks + BuyPrice * Amount*(1+tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace));
 			
-			//计算并调整平均价格
-			avgPrice = parseFloat((Total / coinAmount).toFixed(tp.Args.PriceDecimalPlace));
-			_G(tp.Name+"_AvgPrice",avgPrice);
-			
-			Log(tp.Title,"交易对先前的短线交易挂单买入价：",BuyPrice,"，未卖出数量：",Amount,"，长线持仓价格调整到：",avgPrice,"，总持仓数量：",coinAmount,"，总持币成本：",Total);			
-			
-			//保存每次买入之后币的数量
-			_G(tp.Name+"_lastBuycoinAmount", coinAmount);
-			
-			//调整新的beforeBuyingStocks变量，以方便下面的计算
-			beforeBuyingStocks = coinAmount;
+			//清空原来的挂单数组内容
+			tp.Sssts = [];
 		}
 		
-		//清空原来的挂单数组内容
-		tp.Sssts = [];
-		
-		if(checkCanDoSsst(tp, account)){
+		if(!tp.Sssts.length && checkCanDoSsst(tp, account)){
 			//将当前买入作为短线卖单挂出
 			Log(tp.Title,"交易对计划对当前成功的买入量做短线卖出挂单。");
 			var finish = false;
@@ -979,31 +981,36 @@ function checkCanBuytoFull(tp){
 		var pc = 0.1;
 		pc = parseInt(loc.RecordLength/30)*pc;
 		if(pc>0.6) pc = 0.6;
-		if(DayLineCrossNum < 0){
+		if(DayLineCrossNum < 0 && position > pc/2){
 			if(nowloc <= 0.01 && position < (pc+0.2)){
-				Log("满足日K线创年半内新低之后加仓到",(pc+0.2)*100,"%的条件，可以操作买入");
 				buyto = (pc+0.2);
 			}else if(nowloc > 0.01 && nowloc <= 0.06 && position < (pc+0.1)){
-				Log("满足日K线创年半内新低之后加仓到",(pc+0.1)*100,"%的条件，可以操作买入");
 				buyto = (pc+0.1);
 			}else if(nowloc > 0.06 && nowloc <= 0.1 && position < pc){
-				Log("满足日K线创年半内新低之后加仓到",pc*100,"%的条件，可以操作买入");
 				buyto = pc;
+			}
+			//半年的振幅小于2那么保仓值要减半，震荡幅度不够，下跌深底不够
+			if(loc.High/loc.Low < 2){
+				buyto = buyto/2;
+			}
+			if((buyto - position) > 0.01 ){
+				Log("满足日K线创年半内新低之后加仓到",buyto*100,"%的条件，可以操作买入");
+			}else{
+				buyto = 0;
 			}
 		}else if(DayLineCrossNum == 2){
 			if(loc.LastRecord.Close > loc.LastRecord.Open && loc.SecondRecord.Close > loc.SecondRecord.Open && loc.ThirdRecord.Close > loc.ThirdRecord.Open && tp.TPInfo.Stocks < tp.Args.MaxCoinLimit){
 				if(nowloc <= 0.10 && position < (pc+0.3)){
-					Log("满足日K线金叉之后加仓到",(pc+0.3)*100,"%的条件，可以操作买入");
 					buyto = (pc+0.3);
 				}else if(nowloc > 0.10 && nowloc <= 0.15 && position < (pc+0.2)){
-					Log("满足日K线金叉之后加仓到",(pc+0.2)*100,"%的条件，可以操作买入");
 					buyto = (pc+0.2);
 				}else if(nowloc > 0.15 && nowloc <= 0.20 && position < (pc+0.1)){
-					Log("满足日K线金叉之后加仓到",(pc+0.1)*100,"%的条件，可以操作买入");
 					buyto = (pc+0.1);
 				}else if(nowloc > 0.20 && nowloc <= 0.25 && position < pc){
-					Log("满足日K线金叉之后加仓到",pc*100,"%的条件，可以操作买入");
 					buyto = pc;
+				}
+				if(buyto){
+					Log("满足日K线金叉之后加仓到",buyto*100,"%的条件，可以操作买入");
 				}
 			}
 		}
