@@ -96,7 +96,9 @@ function getExchange(name){
 
 //验证JSON内容格式
 function isJSON(str) {
-    if (typeof str == 'string') {
+	if (typeof str == 'object'){
+		return true;
+	}else if (typeof str == 'string') {
         try {
             var obj=JSON.parse(str);
             if(typeof obj == 'object' && obj ){
@@ -264,6 +266,17 @@ function GetRecords(tp, klinetype) {
 	}else{
 		records = _C(tp.Exchange.GetRecords, klinetype);
 	}
+	//如果是回测在前面追加30条记录
+	//此方法可以让回测的时候前面21条K线有交叉数，但第一交叉到来之前的交叉数是不精确的，但大方向是对的
+	//特别需要意的是在回测开始日期的一小段时间内如果震幅比较小可能会出现假正叉
+	if(records.length<21){
+		var data = records[0];
+		if(data){
+			for(var i=0;i<=21;i++){
+				records.unshift(data);
+			}
+		}
+	}
     return records;
 }
 
@@ -343,8 +356,15 @@ function changeDataForSell(tp,account,order){
 		Log(tp.Title,"交易对订单",_G(tp.Name+"_LastOrderId"),"部分成交!卖出数量：",order.DealAmount,"，剩余数量：",order.Amount - order.DealAmount,"，平均卖出价格：",order.AvgPrice,"，平均持仓价格：",avgPrice,"，毛收盈：",profit,"，累计毛收盈：",TotalProfit);
 	}
 	
+	//是否发生了超跌且抄底价格高于持仓均价的情况，如果是不能处理退出点之后的代码
+	var needreturn = false;
+	//如果是抄底平仓（平仓价格低于指导卖出价）不执行以下代码
+	if(_G(tp.Name+"_OverFallBuy") && order.AvgPrice < _G(tp.Name+"_LastSellPrice")){
+		needreturn = true;
+	}
+
 	//设置最后一次卖出价格
-	if(order.DealAmount>(order.Amount/2)){
+	if(!needreturn && order.DealAmount>(order.Amount/2)){
 		_G(tp.Name+"_LastSellPrice",parseFloat(order.AvgPrice));
 	}
 	
@@ -364,6 +384,12 @@ function changeDataForSell(tp,account,order){
 	var tradeTimes = _G(tp.Name+"_SellTimes");
 	tradeTimes++;
 	_G(tp.Name+"_SellTimes",tradeTimes);
+	
+	//如果是抄底平仓不执行以下代码
+	if(needreturn){
+		Log("本次卖出为抄底平仓，不执行以下代码，直接退出")
+		return;
+	}
 	
 	//调整动态点数
 	var sellDynamicPoint = _G(tp.Name+"_SellDynamicPoint") ? _G(tp.Name+"_SellDynamicPoint") : tp.Args.SellPoint;
@@ -509,6 +535,13 @@ function changeDataForBuy(tp,account,order){
 		flag = true;
 	}
 	
+	//判断是否发生了超跌且抄底买入价值小于原来持仓价值的情况，如果是不能处理退出点之后的代码
+	var needreturn = false;
+	//如果是正叉阶段的买入（超跌抄底）到此为止，下面代码不能执行
+	if(_G(tp.Name+"_OverFallBuy") && avgPrice*_G(tp.Name+"_OverFallBefore") > order.AvgPrice*order.DealAmount){
+		needreturn = true;
+	}
+	
 	//核算总持币量
 	var coinAmount = beforeBuyingStocks + order.DealAmount;
 	//是否对当前买入量计入长线核算
@@ -533,12 +566,18 @@ function changeDataForBuy(tp,account,order){
 	tradeTimes++;
 	_G(tp.Name+"_BuyTimes",tradeTimes);
 	
-	//每次买入一次重置上一次卖出价格，方便以新的成本价计算下次卖出价
-	_G(tp.Name+"_LastSellPrice",0);
-	_G(tp.Name+"_HistoryHighPoint", 0);
+	//如果是正叉阶段的买入（超跌抄底）到此为止，下面代码不能执行
+	if(needreturn){
+		Log("发生了超跌抄底，不操作以下代码，直接退出");
+		return;
+	}
 	
 	//保存每次买入之后币的数量
 	_G(tp.Name+"_lastBuycoinAmount", coinAmount);
+	
+	//每次买入一次重置上一次卖出价格，方便以新的成本价计算下次卖出价
+	_G(tp.Name+"_LastSellPrice",0);
+	_G(tp.Name+"_HistoryHighPoint", 0);
 	
 	//调整动态点数
 	var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint") ? _G(tp.Name+"_BuyDynamicPoint") : tp.Args.BuyPoint;
@@ -948,9 +987,6 @@ function checkCanDoSsst(tp, account){
 	}else if(_G(tp.Name+"_OverFallBuy")){
 		Log("当前日内超跌抄底，还没有回升到理想位置不做短线");
 		ret = false;
-	}else if(loc.SecondRecord.High/loc.LastRecord.Close >= 1.3 && tp.TPInfo.Stocks < tp.Args.MaxCoinLimit){
-		Log("当前日内超跌30%，是吸货的时候，不做短线交易");
-		ret = false;
 	}else if(DayLineCrossNum > 0){
 		Log("当前处于上升正叉阶段，不做短线交易");
 		ret = false;
@@ -981,7 +1017,7 @@ function checkCanBuytoFull(tp){
 		var pc = 0.1;
 		pc = parseInt(loc.RecordLength/30)*pc;
 		if(pc>0.6) pc = 0.6;
-		if(DayLineCrossNum < 0 && position > pc/2){
+		if(DayLineCrossNum < 0){
 			if(nowloc <= 0.01 && position < (pc+0.2)){
 				buyto = (pc+0.2);
 			}else if(nowloc > 0.01 && nowloc <= 0.06 && position < (pc+0.1)){
@@ -993,7 +1029,7 @@ function checkCanBuytoFull(tp){
 			if(loc.High/loc.Low < 2){
 				buyto = buyto/2;
 			}
-			if((buyto - position) > 0.01 ){
+			if(position > buyto/2 && (buyto - position) > 0.01 ){
 				Log("满足日K线创年半内新低之后加仓到",buyto*100,"%的条件，可以操作买入");
 			}else{
 				buyto = 0;
@@ -1019,8 +1055,8 @@ function checkCanBuytoFull(tp){
 	if(buyto > 0){
 		ret = {"type":1,"buyto":buyto};
 	}else{
-		if(loc.SecondRecord.High/loc.LastRecord.Close >= 1.3 && tp.TPInfo.Stocks < tp.Args.MaxCoinLimit){
-			//日线超跌30%，如果发生短时内，可以买入到6成
+		if(loc.SecondRecord.High/loc.LastRecord.Close >= 1.15 && tp.TPInfo.Stocks < tp.Args.MaxCoinLimit){
+			//日线超跌15%以上，如果发生短时内，可以进行抄底买入
 			var records = GetRecords(tp,PERIOD_H1);
 			var lastrecord = records[records.length - 1];
 			var secondrecord = records[records.length - 2];
@@ -1042,6 +1078,12 @@ function checkCanBuytoFull(tp){
 			}else if(downpc >= 1.3 && position < 0.5){
 				Log("满足时K线跌超30%加仓到50%的条件，可以操作买入");
 				buyto = 0.5;
+			}else if(downpc >= 1.2 && position < 0.4){
+				Log("满足时K线跌超20%加仓到40%的条件，可以操作买入");
+				buyto = 0.4;
+			}else if(downpc >= 1.15 && position < 0.3){
+				Log("满足时K线跌超15%加仓到30%的条件，可以操作买入");
+				buyto = 0.3;
 			}
 			//需要买入，设置返回对像
 			if(buyto > 0){
@@ -1058,7 +1100,6 @@ function cancelAllSsstSellOrder(tp, beforeBuyingStocks){
 	//检测当前是否存在短线交易
 	if(tp.Sssts.length ){
 		//存在，检测当前卖单交易是否完成,没有完成强制取消挂单
-		Log(tp.Title,"进入金叉取消所有短线交易卖出挂单");
 		checkSsstSellFinish(tp, true);
 		//对未完成的卖单计入长线核算
 		var Amount = 0;
@@ -1221,10 +1262,9 @@ function onTick(tp) {
 			_G(tp.Name+"_BeforeBuyingStocks",coinAmount);
 			//如果是超跌抄底，需要设置标识保存之前的买入量
 			if(buytofull.type == 2){
-				_G(tp.Name+"_OverFallBuy",1);
-				var beforeamount = _G(tp.Name+"_OverFallBefore") ? _G(tp.Name+"_OverFallBefore") : 0;
-				if(!beforeamount){ 
-					_G(tp.Name+"_OverFallBefore",coinAmount);	//仅保存初次抄底之前的持仓量
+				if(!overFallBuy){
+					_G(tp.Name+"_OverFallBuy",1);
+					_G(tp.Name+"_OverFallBefore",coinAmount);
 				}
 				_G(tp.Name+"_OverFallLastBuy",new Date().getTime());
 			}
@@ -1241,17 +1281,36 @@ function onTick(tp) {
 			if(!secondrecord) secondrecord = lastrecord;
 			var overfallbefore = _G(tp.Name+"_OverFallBefore");
 			var cansell = coinAmount - overfallbefore;
-			if(cansell > 0){
+			if(cansell > tp.Args.TradeLimits.MPOMinSellAmount){
 				Log(tp.Title+"交易对发生了超跌抄底，抄底买入数量", cansell);
 				var now = new Date().getTime();
-				if(coinAmount > overfallbefore && Ticker.Buy/avgPrice > 1.02 && (lastrecord.High/lastrecord.Low > 1.3 && (lastrecord.Close - lastrecord.Low)/(lastrecord.High - lastrecord.Low) > 0.8 || secondrecord.High/secondrecord.Low > 1.3 && (lastrecord.Close - secondrecord.Low)/(secondrecord.High - secondrecord.Low) > 0.8 || now > _G(tp.Name+"_OverFallLastBuy")+3600000)){
-					//判断超跌发生关的那天是阳线还是阴线
-					var checkrecord = secondrecord;
-					if(secondrecord.High/secondrecord.Low > 1.3){
-						checkrecord = hourrecords[hourrecords.length -3];
-						if(!checkrecord) checkrecord = secondrecord;
+				if(coinAmount > overfallbefore && Ticker.Buy/avgPrice > 1.02 && (lastrecord.High/lastrecord.Low > 1.15 && (lastrecord.Close - lastrecord.Low)/(lastrecord.High - lastrecord.Low) > 0.8 || secondrecord.High/secondrecord.Low > 1.15 && (lastrecord.Close - secondrecord.Low)/(secondrecord.High - secondrecord.Low) > 0.8 || now > _G(tp.Name+"_OverFallLastBuy")+3600000)){
+					//判断回升之后要不要平仓
+					var exit = true;
+					if(DayLineCrossNum > 0){
+						//读取当前正叉的最高升幅是否超过50%
+						var dayrecords = GetRecords(tp, PERIOD_D1);
+						var line7 = TA.EMA(dayrecords,7);
+						var crosspoint = line7[line7.length - DayLineCrossNum];
+						Log("DayLineCrossNum",DayLineCrossNum,"crosspoint",crosspoint,"historyHighPoint",historyHighPoint,historyHighPoint/crosspoint);
+						//如果超过就必须平仓
+						if(historyHighPoint/crosspoint < 1.5){
+							//读取当前的日K线数据
+							var crossnum = Cross(tp, PERIOD_D1, 7, 21);
+							//判断超跌发生关的那天是阳线还是阴线
+							var checkrecord = secondrecord;
+							if(secondrecord.High/secondrecord.Low > 1.15){
+								checkrecord = hourrecords[hourrecords.length -3];
+								if(!checkrecord) checkrecord = secondrecord;
+							}
+							//如果在正叉当中且上一K线是阳线，不平仓
+							if(crossnum > 0 && checkrecord.Close > checkrecord.Open){
+								exit = false;
+							}
+						}
 					}
-					if(checkrecord.Close < checkrecord.Open){
+					//根据是否平仓做处理
+					if(exit){
 						//下跌趋势中，要平仓
 						opAmount = cansell;
 						if(tp.Args.TradeLimits.MPOMaxSellAmount < opAmount){
@@ -1264,6 +1323,7 @@ function onTick(tp) {
 					}else{
 						//上升趋势中，不要平仓
 						Log(tp.Title+"交易对在上行趋势中超跌抄底买入了",cansell,"个币，当前回升超过8成继续持仓");
+						_G(tp.Name+"_lastBuycoinAmount", coinAmount);
 						_G(tp.Name+"_OverFallBuy",0);
 						_G(tp.Name+"_OverFallBefore",0);
 					}
@@ -1305,7 +1365,7 @@ function onTick(tp) {
 				}else{
 					if(debug) Log("当前持仓数量已经达到最大持仓量", tp.Args.MaxCoinLimit, "，不再买入，看机会卖出。");
 				}
-		    } else if (coinAmount > tp.Args.MinCoinLimit+tp.Args.TradeLimits.MPOMinSellAmount && (DayLineCrossNum > 0 && ((Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee) || Ticker.Buy < historyHighPoint*0.85 && historyHighPoint/avgPrice > 1.60 && (coinAmount-tp.Args.MinCoinLimit) > _G(tp.Name+"_lastBuycoinAmount")*0.4)) || viaGoldArea && DayLineCrossNum < 0 && Ticker.Buy/avgPrice > 1.20)) {
+		    } else if (coinAmount > tp.Args.MinCoinLimit+tp.Args.TradeLimits.MPOMinSellAmount && ((DayLineCrossNum > 0 || overFallBuy) && ((Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee) || !overFallBuy && Ticker.Buy < historyHighPoint*0.85 && historyHighPoint/avgPrice > 1.60 && (coinAmount-tp.Args.MinCoinLimit) > _G(tp.Name+"_lastBuycoinAmount")*0.4)) || viaGoldArea && DayLineCrossNum < 0 && Ticker.Buy/avgPrice > 1.20)) {
 		    	if(DayLineCrossNum < 0) Log("进入了死叉，对现有获利盘持仓进行平仓。");
 		    	if(Ticker.Buy < historyHighPoint*0.85){
 		    		//发生大的回撤时，调整动态卖出点，期望余下的40%的仓位还可以卖个好价
@@ -1332,28 +1392,21 @@ function onTick(tp) {
 					if(debug) Log("当前持仓数量小于最小持仓量", tp.Args.MinCoinLimit, "，没有币可卖，看机会再买入。");
 				}
 		    } else {
-		    	//当买入指导价为0时,看是否有必要操作买入指导价的重置，以增强买入活跃度
-		    	if(lastBuyPrice == 0 && lastSellPrice > 0){
-		    		//当前持仓量小于可卖仓量（最后买入持仓量-最小持仓量）的40%和价格已经回落到了上次卖出价头寸的4成，调整买入指导价为当前价格，以方便可以在相对合理的价格就开始开仓补货，这样可以抬高持仓均价，不至于一次遇到市场最低点之后以后再无法买入了
-		    		var lastBuycoinAmount = _G(tp.Name+"_lastBuycoinAmount") ? _G(tp.Name+"_lastBuycoinAmount") : 0;
-		    		if(stockValue/Account.Balance < 0.4 && coinAmount/lastBuycoinAmount < 0.4 && (Ticker.Sell-avgPrice)/(lastSellPrice-avgPrice) < 0.4){
-		    			_G(tp.Name+"_LastBuyPrice", Ticker.Sell);
-		    			if(debug) Log("且当前持仓量小于可卖仓量（最后买入持仓量-最小持仓量）的40%和价格已经回落到了上次卖出价头寸的4成，调整买入指导价为当前价格，以方便可以在相对合理的价格就开始开仓补货。");
-		    		}
-		    	}else if(lastBuyPrice > 0 && lastSellPrice == 0 && coinAmount<=tp.Args.MinCoinLimit+tp.Args.TradeLimits.MPOMinSellAmount){
-		    		var goodbuyprice = (Ticker.Sell+avgPrice)/2;
-		    		var loc = getInDayLineLocation(tp);
-			    	if(goodbuyprice > lastBuyPrice && goodbuyprice <= (loc.High+loc.Low)/2){
-						_G(tp.Name+"_LastBuyPrice", goodbuyprice);
-						if(debug) Log("当前已经完成平仓，但币价继续上升，适当调整买入指导价以防止指导价过低无法买入。从",lastBuyPrice,"调到",goodbuyprice);
-			    	}
-		    	}
 				if (DayLineCrossNum < 0 ){
 					if(debug) Log("价格没有下跌到买入点，继续观察行情...");
 					//取消现有的短线买入挂单
 					if(DayLineCrossNum == -1 || DayLineCrossNum == -2){
 						cancelAllSsstBuyOrder(tp)
 					}
+					//当买入指导价为0时,看是否有必要操作买入指导价的重置，以增强买入活跃度
+			    	if(lastBuyPrice == 0 && lastSellPrice > 0){
+			    		//当前持仓量小于可卖仓量（最后买入持仓量-最小持仓量）的40%和价格已经回落到了上次卖出价头寸的4成，调整买入指导价为当前价格，以方便可以在相对合理的价格就开始开仓补货，这样可以抬高持仓均价，不至于一次遇到市场最低点之后以后再无法买入了
+			    		var lastBuycoinAmount = _G(tp.Name+"_lastBuycoinAmount") ? _G(tp.Name+"_lastBuycoinAmount") : 0;
+			    		if(stockValue/Account.Balance < 0.4 && coinAmount/lastBuycoinAmount < 0.4 && (Ticker.Sell-avgPrice)/(lastSellPrice-avgPrice) < 0.4){
+			    			_G(tp.Name+"_LastBuyPrice", Ticker.Sell);
+			    			if(debug) Log("且当前持仓量小于可卖仓量（最后买入持仓量-最小持仓量）的40%和价格已经回落到了上次卖出价头寸的4成，调整买入指导价为当前价格，以方便可以在相对合理的价格就开始开仓补货。");
+			    		}
+			    	}
 				}else{
 					if(debug) Log("价格没有上涨到卖出点，继续观察行情...");
 					//调整买入后的量高价格
@@ -1366,7 +1419,20 @@ function onTick(tp) {
 						cancelAllSsstSellOrder(tp, coinAmount);
 					}
 				}
-    		}
+				//调整买入指导价，使其更合理
+				if(lastBuyPrice > 0 && lastSellPrice == 0 && coinAmount<=tp.Args.MinCoinLimit+tp.Args.TradeLimits.MPOMinSellAmount){
+		    		var loc = getInDayLineLocation(tp);
+		    		var guidebuyprice = (Ticker.Sell+avgPrice)/2;
+					var goodbuyprice = (loc.High+loc.Low)/2;
+					if(lastBuyPrice > goodbuyprice){
+						_G(tp.Name+"_LastBuyPrice", goodbuyprice);
+						Log("当前已经完成平仓，但最后的持仓均价过高，适当降底买入指导价以减小未来买入成本。从",lastBuyPrice,"调到",goodbuyprice);
+					}else if(DayLineCrossNum > 0 && guidebuyprice > lastBuyPrice && guidebuyprice <= goodbuyprice){
+						_G(tp.Name+"_LastBuyPrice", guidebuyprice);
+						Log("当前已经完成平仓，但币价继续上升，适当调整买入指导价以防止指导价过低无法买入。从",lastBuyPrice,"调到",guidebuyprice);
+			    	}
+		    	}
+		    }
     	}
     }
     //判断并输出操作结果
