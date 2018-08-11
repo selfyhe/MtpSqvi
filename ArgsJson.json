@@ -15,6 +15,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 1,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 0.001,
             "LPOMaxAmount": 1000,
@@ -40,6 +43,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 0.001,
             "LPOMaxAmount": 1000,
@@ -65,6 +71,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 0.001,
             "LPOMaxAmount": 10000,
@@ -90,6 +99,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+         "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 0.001,
             "LPOMaxAmount": 100000,
@@ -116,6 +128,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 0.01,
             "LPOMaxAmount": 100000,
@@ -141,6 +156,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 1,
             "LPOMaxAmount": 5000000,
@@ -166,6 +184,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 0.01,
             "LPOMaxAmount": 1000000,
@@ -191,6 +212,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 0.001,
             "LPOMaxAmount": 10000,
@@ -216,6 +240,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 0.01,
             "LPOMaxAmount": 200000,
@@ -241,6 +268,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 0.01,
             "LPOMaxAmount": 3000000,
@@ -266,6 +296,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 0.01,
             "LPOMaxAmount": 1000000,
@@ -291,6 +324,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 0.1,
             "LPOMaxAmount": 5000000,
@@ -316,6 +352,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 1,
             "LPOMaxAmount": 20000000,
@@ -341,6 +380,9 @@
         "SellPoint": 0.2,
         "AddPointInSell": -0.005,
         "CanKeepPosition": 0,
+        "HistoryHighPoint":0,
+        "HistoryLowPoint":0,
+        "Debug":0,
         "TradeLimits": {
             "LPOMinAmount": 0.01,
             "LPOMaxAmount": 500000,
