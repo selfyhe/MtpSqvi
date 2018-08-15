@@ -1095,10 +1095,10 @@ function checkCanBuytoFull(tp){
 	var loc = getInDayLineLocation(tp);
 	var stockvalue = tp.TPInfo.StockValue-tp.TPInfo.TickerLast*tp.Args.MinCoinLimit;
 	var position = stockvalue/(tp.TPInfo.Balance+stockvalue);
-	if(tp.Args.CanKeepPosition && loc.RecordLength>30){
+	if(tp.Args.CanKeepPosition && loc.RecordLength>30 && tp.TPInfo.TickerLast < _G(tp.Name+"_BuyGuidePrice")){
 		var nowloc = (loc.Now-loc.Low)/(loc.High-loc.Low);
 		var pc = 0.6;
-		if(DayLineCrossNum < 0 && tp.TPInfo.TickerLast < _G(tp.Name+"_BuyGuidePrice") && position > pc/2){
+		if(DayLineCrossNum < 0 && position > pc/2){
 			if(nowloc <= 0.01 && position < (pc+0.2)){
 				buyto = (pc+0.2);
 			}else if(nowloc > 0.01 && nowloc <= 0.06 && position < (pc+0.1)){
@@ -1468,7 +1468,7 @@ function onTick(tp) {
 				}else{
 					if(debug) Log("当前持仓数量已经达到最大持仓量", tp.Args.MaxCoinLimit, "，不再买入，看机会卖出。");
 				}
-		    } else if (coinAmount > tp.Args.MinCoinLimit+tp.Args.TradeLimits.MPOMinSellAmount && ((DayLineCrossNum > 0 || overFallBuy) && Ticker.Buy > _G(tp.Name+"_BuyGuidePrice") && ((Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee) || !overFallBuy && Ticker.Buy < historyHighPoint*0.85 && historyHighPoint/avgPrice > 1.60)) || viaGoldArea && DayLineCrossNum < 0 && Ticker.Buy/avgPrice > 1.20)) {
+		    } else if (coinAmount > tp.Args.MinCoinLimit+tp.Args.TradeLimits.MPOMinSellAmount && ((DayLineCrossNum > 0 || overFallBuy) && Ticker.Buy > _G(tp.Name+"_BuyGuidePrice") && ((Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee) || !overFallBuy && Ticker.Buy < historyHighPoint*0.85 && historyHighPoint/avgPrice > 1.60)) || viaGoldArea && (DayLineCrossNum === -1 || DayLineCrossNum === -2) && Ticker.Buy > avgPrice)) {
 		    	var dosell = true;
 		    	if(DayLineCrossNum < 0){
 		    		Log("进入了死叉，对现有获利盘持仓进行平仓。");
