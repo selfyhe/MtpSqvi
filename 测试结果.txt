@@ -1,55 +1,4 @@
-﻿上次提交的测试结果：
-2017-12-01 00:00:00 - 2018-07-24 10:00:00 BCH_BTC 50 0 
-[{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":0,"OperateFineness":15,"NowCoinPrice":0.14,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.23,"HistoryLowPoint":0.05,"Debug":0,"TradeLimits":{"LPOMinAmount":0.001,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.001,"MPOMaxSellAmount":10000}}]
-买入25次，卖出41，盈利102.16894465，盈利率：204.34%，显示盈利：105.696495
-2017-10-01 00:00:00 - 2018-07-24 10:00:00 LTC_BTC 19.7863 0 
-[{"ExchangeName":"Huobi","TradePairName":"LTC_BTC","MaxCoinLimit":50000,"MinCoinLimit":0,"OperateFineness":80,"NowCoinPrice":0.0123,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.0176,"HistoryLowPoint":0.007,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-买入23次，卖出20，盈利23.50748413，盈利率：118.80%，显示盈利：24.890234999999993
-2017-10-01 00:00:00 - 2018-07-24 10:00:00 ETH_BTC 19.7863 0 
-[{"ExchangeName":"Huobi","TradePairName":"ETH_BTC","MaxCoinLimit":30000,"MinCoinLimit":0,"OperateFineness":12,"NowCoinPrice":0.08,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.15,"HistoryLowPoint":0.035,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-买入40次，卖出73，盈利45.20610716，盈利率：228.47%，显示盈利：45.97402
-2017-10-01 00:00:00 - 2018-07-24 10:00:00 ETC_BTC 19.7863 0 
-[{"ExchangeName":"Huobi","TradePairName":"ETC_BTC","MaxCoinLimit":30000,"MinCoinLimit":0,"OperateFineness":350,"NowCoinPrice":0.003,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.0083,"HistoryLowPoint":0.001,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-买入42次，卖出59，盈利19.63443089，盈利率：99.23%，显示盈利：22.437037999999998
-
-本次修改死叉平仓由原来的20%的浮盈调为只要有浮盈
---------------------------------------------
-修改后的测试结果（不操作短线）：
-2017-12-01 00:00:00 - 2018-07-24 10:00:00 BCH_BTC 50 0 
-[{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":0,"OperateFineness":15,"NowCoinPrice":0.14,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.23,"HistoryLowPoint":0.05,"Debug":0,"TradeLimits":{"LPOMinAmount":0.001,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.001,"MPOMaxSellAmount":10000}}]
-买入31次，卖出44，盈利103.31855182，盈利率：206.63%，显示盈利：106.17717099999999
-2017-10-01 00:00:00 - 2018-07-24 10:00:00 LTC_BTC 19.7863 0 
-[{"ExchangeName":"Huobi","TradePairName":"LTC_BTC","MaxCoinLimit":50000,"MinCoinLimit":0,"OperateFineness":80,"NowCoinPrice":0.0123,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.0176,"HistoryLowPoint":0.007,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-买入28次，卖出42，盈利22.28316042，盈利率：112.62%，显示盈利：23.619780000000002
-2017-10-01 00:00:00 - 2018-07-24 10:00:00 ETH_BTC 19.7863 0 
-[{"ExchangeName":"Huobi","TradePairName":"ETH_BTC","MaxCoinLimit":30000,"MinCoinLimit":0,"OperateFineness":12,"NowCoinPrice":0.08,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.15,"HistoryLowPoint":0.035,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-买入36次，卖出46，盈利45.20610716，盈利率：228.47%，显示盈利：45.97402
-2017-10-01 00:00:00 - 2018-07-24 10:00:00 ETC_BTC 19.7863 0 
-[{"ExchangeName":"Huobi","TradePairName":"ETC_BTC","MaxCoinLimit":30000,"MinCoinLimit":0,"OperateFineness":350,"NowCoinPrice":0.003,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.0083,"HistoryLowPoint":0.001,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-买入52次，卖出89，盈利22.213709，盈利率：112.27%，显示盈利：33.43502500000002
-
-本次修改死叉平仓由原来的20%的浮盈调为10%浮盈
---------------------------------------------
-修改后的测试结果（不操作短线）：
-2017-12-01 00:00:00 - 2018-07-24 10:00:00 BCH_BTC 50 0 
-[{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":0,"OperateFineness":15,"NowCoinPrice":0.14,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.23,"HistoryLowPoint":0.05,"Debug":0,"TradeLimits":{"LPOMinAmount":0.001,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.001,"MPOMaxSellAmount":10000}}]
-买入31次，卖出44，盈利103.31855182，盈利率：206.63%，显示盈利：106.17717099999999
-2017-10-01 00:00:00 - 2018-07-24 10:00:00 LTC_BTC 19.7863 0 
-[{"ExchangeName":"Huobi","TradePairName":"LTC_BTC","MaxCoinLimit":50000,"MinCoinLimit":0,"OperateFineness":80,"NowCoinPrice":0.0123,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.0176,"HistoryLowPoint":0.007,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-买入25次，卖出22，盈利23.94517484，盈利率：112.62%，显示盈利：25.335225
-2017-10-01 00:00:00 - 2018-07-24 10:00:00 ETH_BTC 19.7863 0 
-[{"ExchangeName":"Huobi","TradePairName":"ETH_BTC","MaxCoinLimit":30000,"MinCoinLimit":0,"OperateFineness":12,"NowCoinPrice":0.08,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.15,"HistoryLowPoint":0.035,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-买入36次，卖出46，盈利45.20610716，盈利率：228.47%，显示盈利：45.97402
-2017-10-01 00:00:00 - 2018-07-24 10:00:00 ETC_BTC 19.7863 0 
-[{"ExchangeName":"Huobi","TradePairName":"ETC_BTC","MaxCoinLimit":30000,"MinCoinLimit":0,"OperateFineness":350,"NowCoinPrice":0.003,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.0083,"HistoryLowPoint":0.001,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-买入42次，卖出64，盈利13.364077，盈利率：67.54%，显示盈利：22.2255
-
-测试结论：
-1.BCH和ETH不管是修改1.0还是1.1，都基本上没有变化
-2.ETC改成1.0的时候，显示收入大增，而LTC去减少，改成1.1的时候LTC收入增加，而ETC收入减少
-3.ETC到最后总是处于满仓状态需要查原因
-
-本次修改死叉有获利就平仓，同时低位保仓或金叉保仓都必须当前价格低于买入指导价
+﻿上次修改死叉有获利就平仓，同时低位保仓或金叉保仓都必须当前价格低于买入指导价
 --------------------------------------------
 修改后的测试结果（不操作短线）：
 2017-12-01 00:00:00 - 2018-07-24 10:00:00 BCH_BTC 50 0 
@@ -65,7 +14,14 @@
 [{"ExchangeName":"Huobi","TradePairName":"ETC_BTC","MaxCoinLimit":30000,"MinCoinLimit":0,"OperateFineness":350,"NowCoinPrice":0.003,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.0083,"HistoryLowPoint":0.001,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
 买入53次，卖出103，盈利28.68277827，盈利率：144.96%，显示盈利：28.774204000000008
 
-最终测试结论：
-1.对于金叉保仓确实需要管理，让它不能在超过买入指导价之后保仓，这样不会拿到高价货而套住，
-2.死叉平仓由原来20%的浮盈修改为只要有浮盈就平仓，然后通过viaGoldArea和当前交叉数为-1或-2来确保是真地通过了金叉后的死叉，而不是金叉上冲的暂时回撤
-3.最终的测试结果LTC和ETC收益能力恢复到正常水平，本次修改主要有助于解决低部上下波动，但实有大幅上冲的行情。
+本次修改买入的限制问题和模块之间的关系
+--------------------------------------------
+修改后没有做短线的测试结果与上面的完全一致
+
+ETC_BTC做短线的结果：
+2017-10-01 00:00:00 - 2018-07-24 10:00:00 ETC_BTC 19.7863 0 
+[{"ExchangeName":"Huobi","TradePairName":"ETC_BTC","MaxCoinLimit":30000,"MinCoinLimit":0,"OperateFineness":350,"NowCoinPrice":0.003,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.0083,"HistoryLowPoint":0.001,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
+买入145次，卖出174，盈利32.58027705，盈利率：164.64%，显示盈利：31.881365000000002
+
+测试结论：
+ETC_BTC交易对之所以在其他交易对做短线都收益下降的情况下，而它的收益却大增，主要是因为这个交易对的波动比较没有规律，所以遇到这样的行情可以做短线。
