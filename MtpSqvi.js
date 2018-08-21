@@ -37,8 +37,10 @@ TradeLimits	交易限额	交易所对于交易对详细的限额数据对像{"LP
             "MPOMaxSellAmount": 100}
 
 策略交互如下
-NewAvgPrice	更新持仓平均价格	只更新均价不更新上一次买入卖出价，用于手动操作买入之后的均价调整，填写格式：TradePairName|Price    字符串型(string) _|_
-GuideBuyPrice	更新指导买入价格    只更新上一个买入价，不更新持仓均价，用于想调节买入点，填写格式：TradePairName|Price	字符串型(string) _|_
+NewAvgPrice	更新持仓平均价格	更新当前持仓均价，用于手动操作买入之后的均价调整，填写格式：TradePairName|Price    字符串型(string) _|_
+GuideBuyPrice	更新买入指导价格    更新买入指导价，调节买入卖出的相关点位，填写格式：TradePairName|Price	字符串型(string) _|_
+LastBuyPrice	更新上次买入价格    更新调整上次买入价，不更新持仓均价，用于影响调节下一次买入点，填写格式：TradePairName|Price	字符串型(string) _|_
+LastSellPrice	更新上次卖出价格    更新调整上次卖出价，用于影响调节下一次卖出点，填写格式：TradePairName|Price	字符串型(string) _|_
 NewBuyPoint	更新动态买入点	根据行情的变化调整动态买入点，是数值不是百分比，填写格式：TradePairName|小于1的数值	字符串型(string) _|_
 NewSellPoint	更新动态卖出点	根据行情的变化调整动态卖出点，是数值不是百分比，填写格式：TradePairName|小于1的数值	字符串型(string) _|_
 NewOperateFineness 更新操作粒度	根据行情可以调整操作粒度，值的填写格式如下:TradePairName|OperateFineness	字符串型(string) _|_
@@ -690,23 +692,36 @@ function commandProc(){
 				}else{
 					var newprice = parseFloat(values[1]);
 					Log(tp.Name,"更新持仓价格为",newprice);
-					tp.Args.NowCoinPrice = newprice;
 					_G(tp.Name+"_AvgPrice",newprice);
-					if(newprice < _G(tp.Name+"_BuyGuidePrice")){
-						_G(tp.Name+"_LastBuyPrice",newprice);
-						_G(tp.Name+"_BuyGuidePrice",newprice);
-					}
-					ArgTables = null;
+					if(newprice < _G(tp.Name+"_AvgPrice") && newprice < _G(tp.Name+"_LastBuyPrice")) _G(tp.Name+"_LastBuyPrice",newprice);
 					AccountTables = null;
 				}
 			}else if(cmds[0] == "GuideBuyPrice"){
-				if(values[1] == '0'){
-					Log(tp.Name,"不能设置价格为0的指导买入价格！！！");
+				var newprice = parseFloat(values[1]);
+				if(newprice <= 0){
+					Log(tp.Name,"不能设置价格为0或负数的指导买入价格！！！");
 				}else{
-					var newprice = parseFloat(values[1]);
 					Log(tp.Name,"更新指导买入价格为",newprice);
-					_G(tp.Name+"_LastBuyPrice",newprice);
+					if(newprice < _G(tp.Name+"_BuyGuidePrice") && newprice < _G(tp.Name+"_LastBuyPrice")) _G(tp.Name+"_LastBuyPrice",newprice);
 					_G(tp.Name+"_BuyGuidePrice",newprice);
+					AccountTables = null;
+				}
+			}else if(cmds[0] == "LastBuyPrice"){
+				var newprice = parseFloat(values[1]);
+				if(newprice < 0){
+					Log(tp.Name,"不能设置价格为负数的上次买入价格！！！");
+				}else{
+					Log(tp.Name,"更新上次买入价格为",newprice);
+					_G(tp.Name+"_LastBuyPrice",newprice);
+					AccountTables = null;
+				}
+			}else if(cmds[0] == "LastSellPrice"){
+				var newprice = parseFloat(values[1]);
+				if(newprice < 0){
+					Log(tp.Name,"不能设置价格为负数的上次卖出价格！！！");
+				}else{
+					Log(tp.Name,"更新上次卖出价格为",newprice);
+					_G(tp.Name+"_LastSellPrice",newprice);
 					AccountTables = null;
 				}
 			}else if(cmds[0] == "NewBuyPoint"){
