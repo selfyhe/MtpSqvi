@@ -1,5 +1,5 @@
 /**************************************
-多交易对现货长线量化价值投资策略V2.5.3
+多交易对现货长线量化价值投资策略V2.5.4
 说明：
 1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
@@ -46,7 +46,7 @@ NewSellPoint	更新动态卖出点	根据行情的变化调整动态卖出点，
 NewOperateFineness 更新操作粒度	根据行情可以调整操作粒度，值的填写格式如下:TradePairName|OperateFineness	字符串型(string) _|_
 SsstSwitch	短线交易开关	控制短线交易操作是否可以进行，状态为：0关闭，1打开，2为自动，值的填写格式如下:TradePairName(更新全部交易对用ALL)|0/1/2	字符串型(string) _|_
 ManualOperation	MO操作	适用于账户终始化、结算平仓和紧急情况处理，值的填写格式如下:TradePairName|Type(0取消/1卖出/2买入)|Price/OrderID|Amount	字符串型(string) _|_|_|_
-ConditionOperation 条件操作 当币价达到指定条件时，执行指定的策略互动操作。 值的填写格式如下:Condition|策略互动命令|互动参数 字符串型(string) _|_|_
+ConditionOperation 条件操作 当达到指定条件时，执行指定的策略互动操作。 值的填写格式如下:Condition(价格，交叉数)|策略互动命令|互动参数 字符串型(string) _|_|_
 OperationLog	交易日志 把当前操作的原因和目的通过LOG功能输出到日志信息当中，方便日后回看。	字符串型(string) ALL|_
 ClearLog 清除日志	手动清除当前策略的日志，值为需要保留的最近的记录条数 数字型(number) 0
 Debug	更新调试状态	值的填写格式如下:TradePairName(更新全部交易对用ALL)|0/1 字符串型(string) ALL|0
@@ -811,25 +811,25 @@ function commandProc(cmd){
 						var Amount = eval(values[3]+"+0");
 						if(values[1] == "1"){
 							if((Account.Stocks - tp.Args.MinCoinLimit) < Amount){
-								Log(tp.Name+"交易对的可卖出数量不足",Amount,"，卖出失败。 #FF0000");
+								Log(tp.Title+"交易对的可卖出数量不足",Amount,"，卖出失败。 #FF0000");
 							}else if(values.length == 4 && Price != -1 && Price < _G(tp.Name+"_AvgPrice")){
-								Log(tp.Name+"交易对计划卖出价格",Price,"低于成本价",_G(tp.Name+"_AvgPrice"),"，卖出失败。 #FF0000");
+								Log(tp.Title+"交易对计划卖出价格",Price,"低于成本价",_G(tp.Name+"_AvgPrice"),"，卖出失败。 #FF0000");
 							}else if(values.length == 4 && Price == -1 && Ticker.Buy < _G(tp.Name+"_AvgPrice")){
-								Log(tp.Name+"交易对计划以市价卖出，但当前市价",Ticker.Buy,"低于成本价",_G(tp.Name+"_AvgPrice"),"，卖出失败。 #FF0000");
+								Log(tp.Title+"交易对计划以市价卖出，但当前市价",Ticker.Buy,"低于成本价",_G(tp.Name+"_AvgPrice"),"，卖出失败。 #FF0000");
 							}else if( values.length == 5 && Amount > _G(tp.Name+"_OperateFineness")){
-								Log(tp.Name+"交易对计划低于成本价强制卖出，但卖出数量超过了规定限制，卖出失败。 #FF0000");
+								Log(tp.Title+"交易对计划低于成本价强制卖出，但卖出数量超过了规定限制，卖出失败。 #FF0000");
 							}else if(Price != -1 && Price < Ticker.Last*0.99){
-								Log(tp.Name+"交易对计划卖出价格",Price,"低于当前价格",Ticker.Last,"的99%，卖出失败。 #FF0000");
+								Log(tp.Title+"交易对计划卖出价格",Price,"低于当前价格",Ticker.Last,"的99%，卖出失败。 #FF0000");
 							}else if(Price == -1 && Amount < tp.Args.TradeLimits.MPOMinSellAmount && Amount > tp.Args.TradeLimits.MPOMaxSellAmount){
-								Log(tp.Name+"交易对计划卖出数量超出交易限制，市价卖出单最小限量",tp.Args.TradeLimits.MPOMinSellAmount,"最大限量",tp.Args.TradeLimits.MPOMaxSellAmount,"。 #FF0000");
+								Log(tp.Title+"交易对计划卖出数量超出交易限制，市价卖出单最小限量",tp.Args.TradeLimits.MPOMinSellAmount,"最大限量",tp.Args.TradeLimits.MPOMaxSellAmount,"。 #FF0000");
 							}else if(Price != -1 && Amount < tp.Args.TradeLimits.LPOMinAmount && Amount > tp.Args.TradeLimits.LPOMaxAmount){
-								Log(tp.Name+"交易对计划卖出数量超出交易限制，限价卖出单最小限量",tp.Args.TradeLimits.LPOMinAmount,"最大限量",tp.Args.TradeLimits.LPOMaxAmount,"。 #FF0000");
+								Log(tp.Title+"交易对计划卖出数量超出交易限制，限价卖出单最小限量",tp.Args.TradeLimits.LPOMinAmount,"最大限量",tp.Args.TradeLimits.LPOMaxAmount,"。 #FF0000");
 							}else{
 								orderid = tp.Exchange.Sell(Price, Amount);
 								if(orderid){
-									Log(tp.Name+"交易对应策略互动操作",values.length == 5 ? '强制' : '' ,"要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交成功，订单编号：",orderid);
+									Log(tp.Title+"交易对应策略互动操作",values.length == 5 ? '强制' : '' ,"要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交成功，订单编号：",orderid);
 								}else{
-									Log(tp.Name+"交易对应策略互动操作",values.length == 5 ? '强制' : '' ,"要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交失败。");
+									Log(tp.Title+"交易对应策略互动操作",values.length == 5 ? '强制' : '' ,"要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交失败。");
 								}
 							}
 						}else{
@@ -842,15 +842,15 @@ function commandProc(cmd){
 							var canbuy = canpay/buyprice;
 							canbuy = _N(canbuy, tp.Args.StockDecimalPlace);
 							if(canbuy < Amount){
-								Log(tp.Name+"交易对的可买入数量为",canbuy,"不足",Amount,"，买入操作失败。 #FF0000");
+								Log(tp.Title+"交易对的可买入数量为",canbuy,"不足",Amount,"，买入操作失败。 #FF0000");
 							}else if(Price != -1 && Price > _G(tp.Name+"_AvgPrice")*1.20){
-								Log(tp.Name+"交易对计划买入价格",Price,"高于成本价",_G(tp.Name+"_AvgPrice"),"的1.2倍，买入操作失败。 #FF0000");
+								Log(tp.Title+"交易对计划买入价格",Price,"高于成本价",_G(tp.Name+"_AvgPrice"),"的1.2倍，买入操作失败。 #FF0000");
 							}else if(Price != -1 && Price > Ticker.Last*1.01){
-								Log(tp.Name+"交易对计划买入价格",Price,"高于当前价格",Ticker.Last,"的1.01倍，买入操作失败。 #FF0000");
+								Log(tp.Title+"交易对计划买入价格",Price,"高于当前价格",Ticker.Last,"的1.01倍，买入操作失败。 #FF0000");
 							}else if(Price == -1 && Amount < tp.Args.TradeLimits.MPOMinBuyAmount && Amount > tp.Args.TradeLimits.MPOMaxBuyAmount){
-								Log(tp.Name+"交易对计划卖出数量超出交易限制，市价买入单最小限量",tp.Args.TradeLimits.MPOMinBuyAmount,"最大限量",tp.Args.TradeLimits.MPOMaxBuyAmount,"。 #FF0000");
+								Log(tp.Title+"交易对计划卖出数量超出交易限制，市价买入单最小限量",tp.Args.TradeLimits.MPOMinBuyAmount,"最大限量",tp.Args.TradeLimits.MPOMaxBuyAmount,"。 #FF0000");
 							}else if(Price != -1 && Amount < tp.Args.TradeLimits.LPOMinAmount && Amount > tp.Args.TradeLimits.LPOMaxAmount){
-								Log(tp.Name+"交易对计划卖出数量超出交易限制，限价买入单最小限量",tp.Args.TradeLimits.LPOMinAmount,"最大限量",tp.Args.TradeLimits.LPOMaxAmount,"。 #FF0000");
+								Log(tp.Title+"交易对计划卖出数量超出交易限制，限价买入单最小限量",tp.Args.TradeLimits.LPOMinAmount,"最大限量",tp.Args.TradeLimits.LPOMaxAmount,"。 #FF0000");
 							}else{
 								var msg = tp.Name+"交易对应策略互动操作要求以";
 								if(values[2] == '-1'){
@@ -930,7 +930,9 @@ function procConditionCmd(tp){
 				if(cmds[3] == tp.Name){
 					//判断条件
 					var ticker = tp.Exchange.GetTicker();
-					var cds = ticker.Last+cmds[1];
+					var cds = cmds[1];
+					cds = cds.replace(new RegExp("Price","gm"),ticker.Last);
+					cds = cds.replace(new RegExp("CrossNum","gm"),DayLineCrossNum);
 					if(eval(cds)){
 						//还原命令
 						var cmd = "";
@@ -1379,7 +1381,7 @@ function onTick(tp) {
 	//处理持仓价格变量
     var coinAmount = getAccountStocks(Account); //从帐户中获取当前持仓信息
 	if(coinAmount > tp.Args.TradeLimits.MPOMinSellAmount && avgPrice === 0){
-		Log(tp.Name+"交易对账户有持币，但是输入的均价为0，请确认参数！！ #FF0000");
+		Log(tp.Title+"交易对账户有持币，但是输入的均价为0，请确认参数！！ #FF0000");
 		return false;
 	}
 	var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint");	
@@ -1464,7 +1466,7 @@ function onTick(tp) {
 			mustpay = tp.Args.TradeLimits.MPOMaxBuyAmount;
 		}
 		if(mustpay > tp.Args.TradeLimits.MPOMinBuyAmount){
-			Log(tp.Name+"交易对当前需要快速操作买入加仓到", buytofull.buyto,"，预计花费",mustpay);
+			Log(tp.Title+"交易对当前需要快速操作买入加仓到", buytofull.buyto,"，预计花费",mustpay);
 			isOperated = true;
 			orderid = tp.Exchange.Buy(-1,mustpay);
 			_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_BUY);
@@ -1481,7 +1483,7 @@ function onTick(tp) {
 				_G(tp.Name+"_OverFallCosts",costs);
 			}
 		}else{
-			Log(tp.Name+"交易对可支付金额不足于购买最小交易量，保仓操作完成。");
+			Log(tp.Title+"交易对可支付金额不足于购买最小交易量，保仓操作完成。");
 		}
 	}
 	if(!orderid){
@@ -1562,7 +1564,7 @@ function onTick(tp) {
 						if(coinAmount <= tp.Args.TradeLimits.MPOMinSellAmount || baseBuyPrice === 0){
 							if(debug) Log("程序运行之后或卖空之后第一次买入，以现价", Ticker.Sell, "，准备买入",opAmount,"个币。");
 						}else{
-							if(debug) Log("当前市价", Ticker.Sell, " < 买入点", parseFloat((baseBuyPrice * (1 - tp.Args.SellPoint - tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace)), "，准备买入",opAmount,"个币。");
+							if(debug) Log("当前市价", Ticker.Sell, " < 买入价位", parseFloat((baseBuyPrice * (1 - buyDynamicPoint - tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace)), "，准备买入",opAmount,"个币。");
 						}
 						isOperated = true;
 						Log("当前基准买入价格", baseBuyPrice, "上次买入价格", lastBuyPrice, "动态买入点", buyDynamicPoint, "当前持仓总量", coinAmount);
