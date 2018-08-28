@@ -1,5 +1,5 @@
 /**************************************
-多交易对现货长线量化价值投资策略V2.5.4
+多交易对现货长线量化价值投资策略V2.5.5
 说明：
 1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
@@ -841,9 +841,7 @@ function commandProc(cmd){
 							}
 							var canbuy = canpay/buyprice;
 							canbuy = _N(canbuy, tp.Args.StockDecimalPlace);
-							if(canbuy < Amount){
-								Log(tp.Title+"交易对的可买入数量为",canbuy,"不足",Amount,"，买入操作失败。 #FF0000");
-							}else if(Price != -1 && Price > _G(tp.Name+"_AvgPrice")*1.20){
+                            if(Price != -1 && Price > _G(tp.Name+"_AvgPrice")*1.20){
 								Log(tp.Title+"交易对计划买入价格",Price,"高于成本价",_G(tp.Name+"_AvgPrice"),"的1.2倍，买入操作失败。 #FF0000");
 							}else if(Price != -1 && Price > Ticker.Last*1.01){
 								Log(tp.Title+"交易对计划买入价格",Price,"高于当前价格",Ticker.Last,"的1.01倍，买入操作失败。 #FF0000");
@@ -853,11 +851,23 @@ function commandProc(cmd){
 								Log(tp.Title+"交易对计划卖出数量超出交易限制，限价买入单最小限量",tp.Args.TradeLimits.LPOMinAmount,"最大限量",tp.Args.TradeLimits.LPOMaxAmount,"。 #FF0000");
 							}else{
 								var msg = tp.Name+"交易对应策略互动操作要求以";
-								if(values[2] == '-1'){
-									msg = "市价买入价值"+values[3]+"的币";
-								}else{
-									msg = values[2]+"的价格买入"+values[3]+"个币";
-								}
+                                if(Price == -1){
+                                    if(canpay < Amount){
+                                        Amount = canpay;
+                                    }
+                                    if(tp.Args.TradeLimits.MPOMaxBuyAmount < Amount){
+		                                Amount = tp.Args.TradeLimits.MPOMaxBuyAmount;
+		                            }
+									msg = "市价买入价值"+values[3]+"的币，最终核算下来花费"+Amount;
+                                }else{
+                                    if(canbuy < Amount){
+                                        Amount = canbuy;
+                                    }
+                                    if(tp.Args.TradeLimits.LPOMaxAmount < Amount){
+		                            	Amount = tp.Args.TradeLimits.LPOMaxAmount;
+		                            }
+									msg = values[2]+"的价格买入"+values[3]+"个币，最终核算下来买入"+Amount+"币";
+                                }
 								orderid = tp.Exchange.Buy(Price, Amount);
 								if(orderid){
 									Log(msg,"，订单提交成功，订单编号：",orderid);
