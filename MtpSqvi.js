@@ -1,5 +1,5 @@
 /**************************************
-多交易对现货长线量化价值投资策略V2.5.5
+多交易对现货长线量化价值投资策略V2.5.6
 说明：
 1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
@@ -695,6 +695,22 @@ function commandProc(cmd){
 					}
 				}
 				return;
+			}else if(cmds[0] == "ClearLog"){
+				Log("接收到清除日志命令");
+				var lognum = parseInt(cmds[1]);
+				if(lognum >= 0){
+					//清除日志
+					if(lognum){
+						LogReset(lognum);
+					}else{
+						LogReset();
+					}
+					//回收SQLite空间
+					LogVacuum();
+					Log("日志清除完成，请刷新页面。"," #0000FF")
+				}else{
+					Log("提供的保留记录条数非法值，拒绝操作！！！");
+				}
 			}else{
 				values = cmds[1].split("|");
 				if(values.length >= 2){
@@ -888,21 +904,6 @@ function commandProc(cmd){
 					Log("交易日志：",cmds[1]);
 				}else{
 					Log(tp.Title,"交易日志：",cmds[1]);
-				}
-			}else if(cmds[0] == "ClearLog"){
-				var lognum = parseInt(values[1]);
-				if(!lognum || lognum < 0){
-					Log(tp.Title,"提供的保留记录条数非法值，拒绝操作！！！");
-				}else{
-					//清除日志
-					if(lognum){
-						LogReset(lognum);
-					}else{
-						LogReset();
-					}
-					//回收SQLite空间
-					LogVacuum();
-					Log("日志清除完成，请刷新页面。"," #0000FF")
 				}
 			}else if(cmds[0] == "Debug"){
 				if(values[0].toUpperCase() == "ALL"){
