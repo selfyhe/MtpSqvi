@@ -403,7 +403,7 @@ function changeDataForSell(tp,account,order){
 		//币价回升重置回撤处理
 		if(_G(tp.Name+"_HandledRetreat")) _G(tp.Name+"_HandledRetreat", 0);
 		//重新计算操作粒度
-		_G(tp.Name+"_OperateFineness", parseInt(account.Balance/guideBuyPrice/Transaction_Depth));
+		if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseInt(account.Balance/guideBuyPrice/Transaction_Depth));
 	}else{
 		//卖出成功，重置上一次买入价格，以方便下跌补仓
 		_G(tp.Name+"_LastBuyPrice",0);
@@ -1674,13 +1674,13 @@ function onTick(tp) {
 							_G(tp.Name+"_BuyGuidePrice",goodbuyprice);
 							Log("当前已经完成平仓，但最后的持仓均价过高，适当降底买入指导价以减小未来买入成本。从",lastBuyPrice,"调到",goodbuyprice);
 							//重新计算操作粒度
-							_G(tp.Name+"_OperateFineness", parseInt(Account.Balance/goodbuyprice/Transaction_Depth));
+							if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseInt(Account.Balance/goodbuyprice/Transaction_Depth));
 						}else if(DayLineCrossNum > 0 && guidebuyprice > lastBuyPrice && guidebuyprice <= goodbuyprice){
 							_G(tp.Name+"_LastBuyPrice", guidebuyprice);
 							_G(tp.Name+"_BuyGuidePrice",guidebuyprice);
 							Log("当前已经完成平仓，但币价继续上升，适当调整买入指导价以防止指导价过低无法买入。从",lastBuyPrice,"调到",guidebuyprice);
 							//重新计算操作粒度
-							_G(tp.Name+"_OperateFineness", parseInt(Account.Balance/guidebuyprice/Transaction_Depth));
+							if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseInt(Account.Balance/guidebuyprice/Transaction_Depth));
 				    	}
 			    	}
 			    }
@@ -1948,7 +1948,7 @@ function checkMOOrder(tp){
 								//调整动态点数
 								_G(tp.Name+"_BuyDynamicPoint", tp.Args.BuyPoint);
 								//重新计算操作粒度
-								_G(tp.Name+"_OperateFineness", parseInt(GetAccount(tp).Balance/guideBuyPrice/Transaction_Depth));
+								if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseInt(GetAccount(tp).Balance/guideBuyPrice/Transaction_Depth));
 							}
 							
 							//列新交易次数
