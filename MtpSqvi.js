@@ -144,8 +144,8 @@ function checkArgs(tp){
 		Log(tp.Title,"交易对参数：平台买卖手续费为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
-	if(a.PriceDecimalPlace === 0 || a.StockDecimalPlace === 0){
-		Log(tp.Title,"交易对参数：交易对价格/数量小数位为0，必须填写此字段。 #FF0000");
+	if(a.PriceDecimalPlace === 0){
+		Log(tp.Title,"交易对参数：交易对价格小数位为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.BuyPoint === 0){
