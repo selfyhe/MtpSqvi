@@ -1,5 +1,5 @@
 /**************************************
-多交易对现货长线量化价值投资策略V2.5.7
+多交易对现货长线量化价值投资策略V2.5.8
 说明：
 1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
@@ -244,8 +244,8 @@ function init(){
 	parseArgsJson(Json);
 
 	//初始化Ssst对像
-	for(var i=0;i<TradePairs.length;i++){
-		var tp = TradePairs[i];
+	for(var t=0;t<TradePairs.length;t++){
+		var tp = TradePairs[t];
 		if(_G(tp.Name+"_Ssst_CanDo")){
 			for(var i=0;i<3;i++){
 				var ssst = new SsstData();
