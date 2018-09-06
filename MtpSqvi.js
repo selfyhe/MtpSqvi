@@ -1,5 +1,5 @@
 /**************************************
-多交易对现货长线量化价值投资策略V2.5.8
+多交易对现货长线量化价值投资策略V2.5.9
 说明：
 1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
@@ -60,7 +60,7 @@ var OPERATE_STATUS_SELL = 1;
 //三档挂单级别定义
 var THRID_ORDERY_LEVELS = [0.02, 0.03, 0.04];
 //定义建议交易深度
-var Transaction_Depth = 25;
+var Transaction_Depth = 30;
 
 //全局变量定义
 function TradePair(){
@@ -403,7 +403,7 @@ function changeDataForSell(tp,account,order){
 		//币价回升重置回撤处理
 		if(_G(tp.Name+"_HandledRetreat")) _G(tp.Name+"_HandledRetreat", 0);
 		//重新计算操作粒度
-		if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseInt(account.Balance/guideBuyPrice/Transaction_Depth));
+		if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseFloat((account.Balance/guideBuyPrice/Transaction_Depth).toFixed(tp.Args.StockDecimalPlace)));
 	}else{
 		//卖出成功，重置上一次买入价格，以方便下跌补仓
 		_G(tp.Name+"_LastBuyPrice",0);
@@ -781,7 +781,7 @@ function commandProc(cmd){
 					AccountTables = null;
 				}
 			}else if(cmds[0] == "NewOperateFineness"){
-				var nof = parseInt(values[1]);
+				var nof = parseFloat((values[1]).toFixed(tp.Args.StockDecimalPlace));
 				if(!nof || nof <= 0){
 					Log(tp.Title,"尝试更新操作粒度为小于等于0的数值，拒绝操作！！！");
 				}else{
@@ -1674,13 +1674,13 @@ function onTick(tp) {
 							_G(tp.Name+"_BuyGuidePrice",goodbuyprice);
 							Log("当前已经完成平仓，但最后的持仓均价过高，适当降底买入指导价以减小未来买入成本。从",lastBuyPrice,"调到",goodbuyprice);
 							//重新计算操作粒度
-							if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseInt(Account.Balance/goodbuyprice/Transaction_Depth));
+							if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseFloat((Account.Balance/goodbuyprice/Transaction_Depth).toFixed(tp.Args.StockDecimalPlace)));
 						}else if(DayLineCrossNum > 0 && guidebuyprice > lastBuyPrice && guidebuyprice <= goodbuyprice){
 							_G(tp.Name+"_LastBuyPrice", guidebuyprice);
 							_G(tp.Name+"_BuyGuidePrice",guidebuyprice);
 							Log("当前已经完成平仓，但币价继续上升，适当调整买入指导价以防止指导价过低无法买入。从",lastBuyPrice,"调到",guidebuyprice);
 							//重新计算操作粒度
-							if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseInt(Account.Balance/guidebuyprice/Transaction_Depth));
+							if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseFloat((Account.Balance/guidebuyprice/Transaction_Depth).toFixed(tp.Args.StockDecimalPlace)));
 				    	}
 			    	}
 			    }
@@ -1759,7 +1759,7 @@ function showStatus(nowtp){
 		rows = [];
 		for(var r=0;r<TradePairs.length;r++){
 			var tp = TradePairs[r];
-			rows.push([tp.Title, _G(tp.Name+"_BuyTimes"), _G(tp.Name+"_SellTimes"), (_G(tp.Name+"_BuyTimes")+_G(tp.Name+"_SellTimes")), _G(tp.Name+"_SubProfit"), _G(tp.Name+"_Debug"), ['关闭','打开','自动'][_G(tp.Name+"_Ssst_CanDo")], _G(tp.Name+"_OperateFineness"), _G(tp.Name+"_BuyGuidePrice"), _G(tp.Name+"_AddTime"), tp.LastUpdate]);
+			rows.push([tp.Title, _G(tp.Name+"_BuyTimes"), _G(tp.Name+"_SellTimes"), (_G(tp.Name+"_BuyTimes")+_G(tp.Name+"_SellTimes")), parseFloat(_G(tp.Name+"_SubProfit")).toFixed(tp.Args.PriceDecimalPlace), _G(tp.Name+"_Debug"), ['关闭','打开','自动'][_G(tp.Name+"_Ssst_CanDo")], _G(tp.Name+"_OperateFineness"), _G(tp.Name+"_BuyGuidePrice"), _G(tp.Name+"_AddTime"), tp.LastUpdate]);
 		}
 		accounttable2.rows = rows;
 		accounttables.push(accounttable2);
@@ -1823,7 +1823,7 @@ function showStatus(nowtp){
 		var accounttable2 = AccountTables[1];
 		for(var r=0;r<accounttable2.rows.length;r++){
 			if(nowtp.Title == accounttable2.rows[r][0]){
-				accounttable2.rows[r] =[nowtp.Title, _G(nowtp.Name+"_BuyTimes"), _G(nowtp.Name+"_SellTimes"), (_G(nowtp.Name+"_BuyTimes")+_G(nowtp.Name+"_SellTimes")), _G(nowtp.Name+"_SubProfit"), _G(nowtp.Name+"_Debug"), ['关闭','打开','自动'][_G(nowtp.Name+"_Ssst_CanDo")], _G(nowtp.Name+"_OperateFineness"), _G(nowtp.Name+"_BuyGuidePrice"), _G(nowtp.Name+"_AddTime"), nowtp.LastUpdate];
+				accounttable2.rows[r] =[nowtp.Title, _G(nowtp.Name+"_BuyTimes"), _G(nowtp.Name+"_SellTimes"), (_G(nowtp.Name+"_BuyTimes")+_G(nowtp.Name+"_SellTimes")), parseFloat(_G(nowtp.Name+"_SubProfit")).toFixed(nowtp.Args.PriceDecimalPlace), _G(nowtp.Name+"_Debug"), ['关闭','打开','自动'][_G(nowtp.Name+"_Ssst_CanDo")], _G(nowtp.Name+"_OperateFineness"), _G(nowtp.Name+"_BuyGuidePrice"), _G(nowtp.Name+"_AddTime"), nowtp.LastUpdate];
 				break;
 			}	
 		}		
@@ -1948,7 +1948,7 @@ function checkMOOrder(tp){
 								//调整动态点数
 								_G(tp.Name+"_BuyDynamicPoint", tp.Args.BuyPoint);
 								//重新计算操作粒度
-								if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseInt(GetAccount(tp).Balance/guideBuyPrice/Transaction_Depth));
+								if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseFloat((GetAccount(tp).Balance/guideBuyPrice/Transaction_Depth).toFixed(tp.Args.StockDecimalPlace)));
 							}
 							
 							//列新交易次数
