@@ -1,5 +1,5 @@
 /**************************************
-多交易对现货长线量化价值投资策略V2.5.9
+多交易对现货长线量化价值投资策略V2.5.10
 说明：
 1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
@@ -42,7 +42,7 @@ GuideBuyPrice	更新买入指导价格    更新买入指导价，调节买入�
 LastBuyPrice	更新上次买入价格    更新调整上次买入价，不更新持仓均价，用于影响调节下一次买入点，填写格式：TradePairName|Price	字符串型(string) _|_
 LastSellPrice	更新上次卖出价格    更新调整上次卖出价，用于影响调节下一次卖出点，填写格式：TradePairName|Price	字符串型(string) _|_
 NewBuyPoint	更新动态买入点	根据行情的变化调整动态买入点，是数值不是百分比，填写格式：TradePairName|小于1的数值	字符串型(string) _|_
-NewSellPoint	更新动态卖出点	根据行情的变化调整动态卖出点，是数值不是百分比，填写格式：TradePairName|小于1的数值	字符串型(string) _|_
+NewSellPoint	更新动态卖出点	根据行情的变化调整动态卖出点，是数值不是百分比，填写格式：TradePairName/ALL|小于1的数值	字符串型(string) _|_
 NewOperateFineness 更新操作粒度	根据行情可以调整操作粒度，值的填写格式如下:TradePairName|OperateFineness	字符串型(string) _|_
 SsstSwitch	短线交易开关	控制短线交易操作是否可以进行，状态为：0关闭，1打开，2为自动，值的填写格式如下:TradePairName(更新全部交易对用ALL)|0/1/2	字符串型(string) _|_
 ManualOperation	MO操作	适用于账户终始化、结算平仓和紧急情况处理，值的填写格式如下:TradePairName|Type(0取消/1卖出/2买入)|Price/OrderID|Amount	字符串型(string) _|_|_|_
@@ -428,7 +428,7 @@ function changeDataForSell(tp,account,order){
 	}else{
 		//正常卖出
 		var newsdp = sellDynamicPoint + tp.Args.AddPointInSell;
-		sellDynamicPoint = newsdp < tp.Args.SellPoint/2 ? tp.Args.SellPoint/2 : newsdp;
+		sellDynamicPoint = newsdp < 0.001 ? 0.001 : newsdp;
 	}
 	_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint);
 	var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint");
@@ -773,12 +773,20 @@ function commandProc(cmd){
 					AccountTables = null;
 				}
 			}else if(cmds[0] == "NewSellPoint"){
-				if(values[1] == '0'){
-					Log(tp.Title,"尝试更新动态卖出点为0，拒绝操作！！！");
-				}else{
-					Log(tp.Title,"更新动态卖出点为",values[1]);
-					_G(tp.Name+"_SellDynamicPoint",parseFloat(values[1]));
-					AccountTables = null;
+				if(values[0].toUpperCase() == "ALL"){
+					for(var i=0;i<TradePairs.length;i++){
+						tp = TradePairs[i];
+						_G(tp.Name+"_SellDynamicPoint",parseFloat(values[1]));
+					}
+					Log("更新所有交易对的动态卖出点为",values[1]," #FF0000");
+				}else{				
+					if(values[1] == '0'){
+						Log(tp.Title,"尝试更新动态卖出点为0，拒绝操作！！！");
+					}else{
+						Log(tp.Title,"更新动态卖出点为",values[1]);
+						_G(tp.Name+"_SellDynamicPoint",parseFloat(values[1]));
+						AccountTables = null;
+					}
 				}
 			}else if(cmds[0] == "NewOperateFineness"){
 				var nof = parseFloat((values[1]).toFixed(tp.Args.StockDecimalPlace));
