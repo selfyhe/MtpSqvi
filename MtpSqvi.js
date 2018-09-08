@@ -1,5 +1,5 @@
 /**************************************
-多交易对现货长线量化价值投资策略V2.5.10
+多交易对现货长线量化价值投资策略V2.5.11
 说明：
 1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
@@ -1675,7 +1675,6 @@ function onTick(tp) {
 					//调整买入指导价，使其更合理
 					if(lastBuyPrice > 0 && lastSellPrice == 0 && coinAmount<=tp.Args.MinCoinLimit+tp.Args.TradeLimits.MPOMinSellAmount){
 			    		var loc = getInDayLineLocation(tp);
-			    		var guidebuyprice = (Ticker.Sell+avgPrice)/2;
 						var goodbuyprice = (loc.High+loc.Low)/2;
 						if(lastBuyPrice > goodbuyprice){
 							_G(tp.Name+"_LastBuyPrice", goodbuyprice);
@@ -1683,12 +1682,15 @@ function onTick(tp) {
 							Log("当前已经完成平仓，但最后的持仓均价过高，适当降底买入指导价以减小未来买入成本。从",lastBuyPrice,"调到",goodbuyprice);
 							//重新计算操作粒度
 							if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseFloat((Account.Balance/goodbuyprice/Transaction_Depth).toFixed(tp.Args.StockDecimalPlace)));
-						}else if(DayLineCrossNum > 0 && guidebuyprice > lastBuyPrice && guidebuyprice <= goodbuyprice){
-							_G(tp.Name+"_LastBuyPrice", guidebuyprice);
-							_G(tp.Name+"_BuyGuidePrice",guidebuyprice);
-							Log("当前已经完成平仓，但币价继续上升，适当调整买入指导价以防止指导价过低无法买入。从",lastBuyPrice,"调到",guidebuyprice);
-							//重新计算操作粒度
-							if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseFloat((Account.Balance/guidebuyprice/Transaction_Depth).toFixed(tp.Args.StockDecimalPlace)));
+						}else if(DayLineCrossNum > 0 && avgPrice < Ticker.Sell){
+							var guidebuyprice = (Ticker.Sell+avgPrice)/2;
+							if(guidebuyprice > lastBuyPrice && guidebuyprice <= goodbuyprice){
+								_G(tp.Name+"_LastBuyPrice", guidebuyprice);
+								_G(tp.Name+"_BuyGuidePrice",guidebuyprice);
+								Log("当前已经完成平仓，但币价继续上升，适当调整买入指导价以防止指导价过低无法买入。从",lastBuyPrice,"调到",guidebuyprice);
+								//重新计算操作粒度
+								if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseFloat((Account.Balance/guidebuyprice/Transaction_Depth).toFixed(tp.Args.StockDecimalPlace)));
+							}
 				    	}
 			    	}
 			    }
