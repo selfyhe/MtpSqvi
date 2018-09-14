@@ -1,5 +1,5 @@
 /**************************************
-多交易对现货长线量化价值投资策略V2.4
+多交易对现货长线量化价值投资策略V2.5.12
 说明：
 1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
@@ -37,13 +37,17 @@ TradeLimits	交易限额	交易所对于交易对详细的限额数据对像{"LP
             "MPOMaxSellAmount": 100}
 
 策略交互如下
-NewAvgPrice	更新持仓平均价格	只更新均价不更新上一次买入卖出价，用于手动操作买入之后的均价调整，填写格式：TradePairName|Price    字符串型(string) _|_
-GuideBuyPrice	更新指导买入价格    只更新上一个买入价，不更新持仓均价，用于想调节买入点，填写格式：TradePairName|Price	字符串型(string) _|_
-NewBuyPoint	更新动态买入点	根据行情的变化调整动态买入点，是数值不是百分比，填写格式：TradePairName|小于1的数值	字符串型(string) _|_
-NewSellPoint	更新动态卖出点	根据行情的变化调整动态卖出点，是数值不是百分比，填写格式：TradePairName|小于1的数值	字符串型(string) _|_
+NewAvgPrice	更新持仓平均价格	更新当前持仓均价，用于手动操作买入之后的均价调整，填写格式：TradePairName|Price    字符串型(string) _|_
+GuideBuyPrice	更新买入指导价格    更新买入指导价，调节买入卖出的相关点位，填写格式：TradePairName|Price	字符串型(string) _|_
+LastBuyPrice	更新上次买入价格    更新调整上次买入价，不更新持仓均价，用于影响调节下一次买入点，填写格式：TradePairName|Price	字符串型(string) _|_
+LastSellPrice	更新上次卖出价格    更新调整上次卖出价，用于影响调节下一次卖出点，填写格式：TradePairName|Price	字符串型(string) _|_
+NewBuyPoint	更新动态买入点	根据行情的变化调整动态买入点，是数值不是百分比，填写格式：TradePairName/ALL|小于1的数值	字符串型(string) _|_
+NewSellPoint	更新动态卖出点	根据行情的变化调整动态卖出点，是数值不是百分比，填写格式：TradePairName/ALL|小于1的数值	字符串型(string) _|_
 NewOperateFineness 更新操作粒度	根据行情可以调整操作粒度，值的填写格式如下:TradePairName|OperateFineness	字符串型(string) _|_
 SsstSwitch	短线交易开关	控制短线交易操作是否可以进行，状态为：0关闭，1打开，2为自动，值的填写格式如下:TradePairName(更新全部交易对用ALL)|0/1/2	字符串型(string) _|_
 ManualOperation	MO操作	适用于账户终始化、结算平仓和紧急情况处理，值的填写格式如下:TradePairName|Type(0取消/1卖出/2买入)|Price/OrderID|Amount	字符串型(string) _|_|_|_
+ConditionOperation 条件操作 当达到指定条件时，执行指定的策略互动操作。 值的填写格式如下:Condition(价格，交叉数)|策略互动命令|互动参数 字符串型(string) _|_|_
+OperationLog	交易日志 把当前操作的原因和目的通过LOG功能输出到日志信息当中，方便日后回看。	字符串型(string) ALL|_
 ClearLog 清除日志	手动清除当前策略的日志，值为需要保留的最近的记录条数 数字型(number) 0
 Debug	更新调试状态	值的填写格式如下:TradePairName(更新全部交易对用ALL)|0/1 字符串型(string) ALL|0
 ************************************************/
@@ -56,7 +60,7 @@ var OPERATE_STATUS_SELL = 1;
 //三档挂单级别定义
 var THRID_ORDERY_LEVELS = [0.02, 0.03, 0.04];
 //定义建议交易深度
-var Transaction_Depth = 25;
+var Transaction_Depth = 30;
 
 //全局变量定义
 function TradePair(){
@@ -129,27 +133,27 @@ function checkArgs(tp){
 	var a = tp.Args;
 	//检测参数的填写
 	if(a.MaxCoinLimit === 0){
-		Log(tp.Name,"交易对参数：最大持仓量为0，必须填写此字段。 #FF0000");
+		Log(tp.Title,"交易对参数：最大持仓量为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.OperateFineness === 0){
-		Log(tp.Name,"交易对参数：基础买卖操作的粒度为0，必须填写此字段。 #FF0000");
+		Log(tp.Title,"交易对参数：基础买卖操作的粒度为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.BuyFee === 0 || a.SellFee === 0){
-		Log(tp.Name,"交易对参数：平台买卖手续费为0，必须填写此字段。 #FF0000");
+		Log(tp.Title,"交易对参数：平台买卖手续费为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
-	if(a.PriceDecimalPlace === 0 || a.StockDecimalPlace === 0){
-		Log(tp.Name,"交易对参数：交易对价格/数量小数位为0，必须填写此字段。 #FF0000");
+	if(a.PriceDecimalPlace === 0){
+		Log(tp.Title,"交易对参数：交易对价格小数位为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.BuyPoint === 0){
-		Log(tp.Name,"交易对参数：基准买入点为0，必须填写此字段。 #FF0000");
+		Log(tp.Title,"交易对参数：基准买入点为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	if(a.SellPoint === 0){
-		Log(tp.Name,"交易对参数：基准卖出点为0，必须填写此字段。 #FF0000");
+		Log(tp.Title,"交易对参数：基准卖出点为0，必须填写此字段。 #FF0000");
 		ret = false;
 	}
 	Log(tp.Title,"交易对接收参数如下：",tp.Args);
@@ -240,8 +244,8 @@ function init(){
 	parseArgsJson(Json);
 
 	//初始化Ssst对像
-	for(var i=0;i<TradePairs.length;i++){
-		var tp = TradePairs[i];
+	for(var t=0;t<TradePairs.length;t++){
+		var tp = TradePairs[t];
 		if(_G(tp.Name+"_Ssst_CanDo")){
 			for(var i=0;i<3;i++){
 				var ssst = new SsstData();
@@ -399,7 +403,7 @@ function changeDataForSell(tp,account,order){
 		//币价回升重置回撤处理
 		if(_G(tp.Name+"_HandledRetreat")) _G(tp.Name+"_HandledRetreat", 0);
 		//重新计算操作粒度
-		_G(tp.Name+"_OperateFineness", parseInt(account.Balance/guideBuyPrice/Transaction_Depth));
+		if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseFloat((account.Balance/guideBuyPrice/Transaction_Depth).toFixed(tp.Args.StockDecimalPlace)));
 	}else{
 		//卖出成功，重置上一次买入价格，以方便下跌补仓
 		_G(tp.Name+"_LastBuyPrice",0);
@@ -424,7 +428,7 @@ function changeDataForSell(tp,account,order){
 	}else{
 		//正常卖出
 		var newsdp = sellDynamicPoint + tp.Args.AddPointInSell;
-		sellDynamicPoint = newsdp < tp.Args.SellPoint/2 ? tp.Args.SellPoint/2 : newsdp;
+		sellDynamicPoint = newsdp < 0.001 ? 0.001 : newsdp;
 	}
 	_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint);
 	var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint");
@@ -664,73 +668,140 @@ function getTradePair(name){
 }
 
 //策略交互处理函数
-function commandProc(){
-    var cmd=GetCommand();
+function commandProc(cmd){
 	if(cmd){
 		var cmds=cmd.split(":");
 		var values;
 		var tp;
 		if(cmds.length === 2){
-			values = cmds[1].split("|");
-			if(values.length >= 2){
-				if(values[0].toUpperCase() != "ALL"){
-					tp = getTradePair(values[0]);
-					if(!tp){
-						Log("没有取到相应的交易对，请确认交易对名称的正确性，格式为交易所名_交易对名!。 #FF0000");
-						return;
+			if(cmds[0] == "ConditionOperation"){
+				Log("接收到条件操作命令",cmds[1]);
+				values = cmds[1].split("|");
+				var ConditionCmds = _G("ConditionCmds") ? _G("ConditionCmds") : [];
+				if(values.length >= 3){
+					ConditionCmds.push(new Date().getTime()+"|"+cmds[1]);
+					_G("ConditionCmds",ConditionCmds);
+				}else{
+					if(values[0] == "Cancel"){
+						var newcmds = [];
+						for(var i = 0;i<ConditionCmds.length;i++){
+							if(ConditionCmds[i].indexOf(values[1]) == -1){
+								newcmds.push(ConditionCmds[i]);
+							}else{
+								Log("取消条件操作命令",ConditionCmds[i]);
+							}
+						}
+						_G("ConditionCmds", newcmds);
 					}
 				}
-			}else{
-				Log("提交的交互内容格式不正式，格式为_|_!。 #FF0000");
 				return;
+			}else if(cmds[0] == "ClearLog"){
+				Log("接收到清除日志命令");
+				var lognum = parseInt(cmds[1]);
+				if(lognum >= 0){
+					//清除日志
+					if(lognum){
+						LogReset(lognum);
+					}else{
+						LogReset();
+					}
+					//回收SQLite空间
+					LogVacuum();
+					Log("日志清除完成，请刷新页面。"," #0000FF")
+				}else{
+					Log("提供的保留记录条数非法值，拒绝操作！！！");
+				}
+			}else{
+				values = cmds[1].split("|");
+				if(values.length >= 2){
+					if(values[0].toUpperCase() != "ALL"){
+						tp = getTradePair(values[0]);
+						if(!tp){
+							Log("没有取到相应的交易对，请确认交易对名称的正确性，格式为交易所名_交易对名!。 #FF0000");
+							return;
+						}
+					}
+				}else{
+					Log("提交的交互内容格式不正式，格式为_|_!。 #FF0000");
+					return;
+				}
 			}
 			if(cmds[0] == "NewAvgPrice"){
 				if(values[1] == '0'){
-					Log(tp.Name,"尝试更新持仓价格为0，拒绝操作！！！");
+					Log(tp.Title,"尝试更新持仓价格为0，拒绝操作！！！");
 				}else{
 					var newprice = parseFloat(values[1]);
-					Log(tp.Name,"更新持仓价格为",newprice);
-					tp.Args.NowCoinPrice = newprice;
+					Log(tp.Title,"更新持仓价格为",newprice);
 					_G(tp.Name+"_AvgPrice",newprice);
-					if(newprice < _G(tp.Name+"_BuyGuidePrice")){
-						_G(tp.Name+"_LastBuyPrice",newprice);
-						_G(tp.Name+"_BuyGuidePrice",newprice);
-					}
-					ArgTables = null;
+					if(newprice < _G(tp.Name+"_AvgPrice") && newprice < _G(tp.Name+"_LastBuyPrice")) _G(tp.Name+"_LastBuyPrice",newprice);
 					AccountTables = null;
 				}
 			}else if(cmds[0] == "GuideBuyPrice"){
-				if(values[1] == '0'){
-					Log(tp.Name,"不能设置价格为0的指导买入价格！！！");
+				var newprice = parseFloat(values[1]);
+				if(newprice <= 0){
+					Log(tp.Title,"不能设置价格为0或负数的指导买入价格！！！");
 				}else{
-					var newprice = parseFloat(values[1]);
-					Log(tp.Name,"更新指导买入价格为",newprice);
-					_G(tp.Name+"_LastBuyPrice",newprice);
+					Log(tp.Title,"更新指导买入价格为",newprice);
+					if(newprice < _G(tp.Name+"_BuyGuidePrice") && newprice < _G(tp.Name+"_LastBuyPrice")) _G(tp.Name+"_LastBuyPrice",newprice);
 					_G(tp.Name+"_BuyGuidePrice",newprice);
 					AccountTables = null;
 				}
-			}else if(cmds[0] == "NewBuyPoint"){
-				if(values[1] == '0'){
-					Log(tp.Name,"尝试更新动态买入点为0，拒绝操作！！！");
+			}else if(cmds[0] == "LastBuyPrice"){
+				var newprice = parseFloat(values[1]);
+				if(newprice < 0){
+					Log(tp.Title,"不能设置价格为负数的上次买入价格！！！");
 				}else{
-					Log(tp.Name,"更新动态买入点为",values[1]);
-					_G(tp.Name+"_BuyDynamicPoint",parseFloat(values[1]));
+					Log(tp.Title,"更新上次买入价格为",newprice);
+					_G(tp.Name+"_LastBuyPrice",newprice);
 					AccountTables = null;
+				}
+			}else if(cmds[0] == "LastSellPrice"){
+				var newprice = parseFloat(values[1]);
+				if(newprice < 0){
+					Log(tp.Title,"不能设置价格为负数的上次卖出价格！！！");
+				}else{
+					Log(tp.Title,"更新上次卖出价格为",newprice);
+					_G(tp.Name+"_LastSellPrice",newprice);
+					AccountTables = null;
+				}
+			}else if(cmds[0] == "NewBuyPoint"){
+				if(values[0].toUpperCase() == "ALL"){
+					for(var i=0;i<TradePairs.length;i++){
+						tp = TradePairs[i];
+						_G(tp.Name+"_BuyDynamicPoint",parseFloat(values[1]));
+					}
+					Log("更新所有交易对的动态买入点为",values[1]," #FF0000");
+				}else{				
+					if(values[1] == '0'){
+						Log(tp.Title,"尝试更新动态买入点为0，拒绝操作！！！");
+					}else{
+						Log(tp.Title,"更新动态买入点为",values[1]);
+						_G(tp.Name+"_BuyDynamicPoint",parseFloat(values[1]));
+						AccountTables = null;
+					}
 				}
 			}else if(cmds[0] == "NewSellPoint"){
-				if(values[1] == '0'){
-					Log(tp.Name,"尝试更新动态卖出点为0，拒绝操作！！！");
-				}else{
-					Log(tp.Name,"更新动态卖出点为",values[1]);
-					_G(tp.Name+"_SellDynamicPoint",parseFloat(values[1]));
-					AccountTables = null;
+				if(values[0].toUpperCase() == "ALL"){
+					for(var i=0;i<TradePairs.length;i++){
+						tp = TradePairs[i];
+						_G(tp.Name+"_SellDynamicPoint",parseFloat(values[1]));
+					}
+					Log("更新所有交易对的动态卖出点为",values[1]," #FF0000");
+				}else{				
+					if(values[1] == '0'){
+						Log(tp.Title,"尝试更新动态卖出点为0，拒绝操作！！！");
+					}else{
+						Log(tp.Title,"更新动态卖出点为",values[1]);
+						_G(tp.Name+"_SellDynamicPoint",parseFloat(values[1]));
+						AccountTables = null;
+					}
 				}
 			}else if(cmds[0] == "NewOperateFineness"){
-				var nof = parseInt(values[1]);
+				var nof = parseFloat((values[1]).toFixed(tp.Args.StockDecimalPlace));
 				if(!nof || nof <= 0){
-					Log(tp.Name,"尝试更新操作粒度为小于等于0的数值，拒绝操作！！！");
+					Log(tp.Title,"尝试更新操作粒度为小于等于0的数值，拒绝操作！！！");
 				}else{
-					Log(tp.Name,"更新操作粒度为",values[1]);
+					Log(tp.Title,"更新操作粒度为",values[1]);
 					_G(tp.Name+"_OperateFineness",nof);
 					AccountTables = null;
 				}
@@ -742,7 +813,7 @@ function commandProc(){
 					}
 					Log("更新所有交易对的短线交易开关为",values[1]," #FF0000");
 				}else{
-					Log(tp.Name,"更新短线交易开关为",values[1]);
+					Log(tp.Title,"更新短线交易开关为",values[1]);
 					_G(tp.Name+"_Ssst_CanDo",parseInt(values[1]));
 				}
 				AccountTables = null;
@@ -772,25 +843,25 @@ function commandProc(){
 						var Amount = eval(values[3]+"+0");
 						if(values[1] == "1"){
 							if((Account.Stocks - tp.Args.MinCoinLimit) < Amount){
-								Log(tp.Name+"交易对的可卖出数量不足",Amount,"，卖出失败。 #FF0000");
+								Log(tp.Title+"交易对的可卖出数量不足",Amount,"，卖出失败。 #FF0000");
 							}else if(values.length == 4 && Price != -1 && Price < _G(tp.Name+"_AvgPrice")){
-								Log(tp.Name+"交易对计划卖出价格",Price,"低于成本价",_G(tp.Name+"_AvgPrice"),"，卖出失败。 #FF0000");
+								Log(tp.Title+"交易对计划卖出价格",Price,"低于成本价",_G(tp.Name+"_AvgPrice"),"，卖出失败。 #FF0000");
 							}else if(values.length == 4 && Price == -1 && Ticker.Buy < _G(tp.Name+"_AvgPrice")){
-								Log(tp.Name+"交易对计划以市价卖出，但当前市价",Ticker.Buy,"低于成本价",_G(tp.Name+"_AvgPrice"),"，卖出失败。 #FF0000");
+								Log(tp.Title+"交易对计划以市价卖出，但当前市价",Ticker.Buy,"低于成本价",_G(tp.Name+"_AvgPrice"),"，卖出失败。 #FF0000");
 							}else if( values.length == 5 && Amount > _G(tp.Name+"_OperateFineness")){
-								Log(tp.Name+"交易对计划低于成本价强制卖出，但卖出数量超过了规定限制，卖出失败。 #FF0000");
+								Log(tp.Title+"交易对计划低于成本价强制卖出，但卖出数量超过了规定限制，卖出失败。 #FF0000");
 							}else if(Price != -1 && Price < Ticker.Last*0.99){
-								Log(tp.Name+"交易对计划卖出价格",Price,"低于当前价格",Ticker.Last,"的99%，卖出失败。 #FF0000");
+								Log(tp.Title+"交易对计划卖出价格",Price,"低于当前价格",Ticker.Last,"的99%，卖出失败。 #FF0000");
 							}else if(Price == -1 && Amount < tp.Args.TradeLimits.MPOMinSellAmount && Amount > tp.Args.TradeLimits.MPOMaxSellAmount){
-								Log(tp.Name+"交易对计划卖出数量超出交易限制，市价卖出单最小限量",tp.Args.TradeLimits.MPOMinSellAmount,"最大限量",tp.Args.TradeLimits.MPOMaxSellAmount,"。 #FF0000");
+								Log(tp.Title+"交易对计划卖出数量超出交易限制，市价卖出单最小限量",tp.Args.TradeLimits.MPOMinSellAmount,"最大限量",tp.Args.TradeLimits.MPOMaxSellAmount,"。 #FF0000");
 							}else if(Price != -1 && Amount < tp.Args.TradeLimits.LPOMinAmount && Amount > tp.Args.TradeLimits.LPOMaxAmount){
-								Log(tp.Name+"交易对计划卖出数量超出交易限制，限价卖出单最小限量",tp.Args.TradeLimits.LPOMinAmount,"最大限量",tp.Args.TradeLimits.LPOMaxAmount,"。 #FF0000");
+								Log(tp.Title+"交易对计划卖出数量超出交易限制，限价卖出单最小限量",tp.Args.TradeLimits.LPOMinAmount,"最大限量",tp.Args.TradeLimits.LPOMaxAmount,"。 #FF0000");
 							}else{
 								orderid = tp.Exchange.Sell(Price, Amount);
 								if(orderid){
-									Log(tp.Name+"交易对应策略互动操作",values.length == 5 ? '强制' : '' ,"要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交成功，订单编号：",orderid);
+									Log(tp.Title+"交易对应策略互动操作",values.length == 5 ? '强制' : '' ,"要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交成功，订单编号：",orderid);
 								}else{
-									Log(tp.Name+"交易对应策略互动操作",values.length == 5 ? '强制' : '' ,"要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交失败。");
+									Log(tp.Title+"交易对应策略互动操作",values.length == 5 ? '强制' : '' ,"要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交失败。");
 								}
 							}
 						}else{
@@ -802,23 +873,33 @@ function commandProc(){
 							}
 							var canbuy = canpay/buyprice;
 							canbuy = _N(canbuy, tp.Args.StockDecimalPlace);
-							if(canbuy < Amount){
-								Log(tp.Name+"交易对的可买入数量为",canbuy,"不足",Amount,"，买入操作失败。 #FF0000");
-							}else if(Price != -1 && Price > _G(tp.Name+"_AvgPrice")*1.20){
-								Log(tp.Name+"交易对计划买入价格",Price,"高于成本价",_G(tp.Name+"_AvgPrice"),"的1.2倍，买入操作失败。 #FF0000");
+                            if(Price != -1 && Price > _G(tp.Name+"_AvgPrice")*1.20){
+								Log(tp.Title+"交易对计划买入价格",Price,"高于成本价",_G(tp.Name+"_AvgPrice"),"的1.2倍，买入操作失败。 #FF0000");
 							}else if(Price != -1 && Price > Ticker.Last*1.01){
-								Log(tp.Name+"交易对计划买入价格",Price,"高于当前价格",Ticker.Last,"的1.01倍，买入操作失败。 #FF0000");
+								Log(tp.Title+"交易对计划买入价格",Price,"高于当前价格",Ticker.Last,"的1.01倍，买入操作失败。 #FF0000");
 							}else if(Price == -1 && Amount < tp.Args.TradeLimits.MPOMinBuyAmount && Amount > tp.Args.TradeLimits.MPOMaxBuyAmount){
-								Log(tp.Name+"交易对计划卖出数量超出交易限制，市价买入单最小限量",tp.Args.TradeLimits.MPOMinBuyAmount,"最大限量",tp.Args.TradeLimits.MPOMaxBuyAmount,"。 #FF0000");
+								Log(tp.Title+"交易对计划卖出数量超出交易限制，市价买入单最小限量",tp.Args.TradeLimits.MPOMinBuyAmount,"最大限量",tp.Args.TradeLimits.MPOMaxBuyAmount,"。 #FF0000");
 							}else if(Price != -1 && Amount < tp.Args.TradeLimits.LPOMinAmount && Amount > tp.Args.TradeLimits.LPOMaxAmount){
-								Log(tp.Name+"交易对计划卖出数量超出交易限制，限价买入单最小限量",tp.Args.TradeLimits.LPOMinAmount,"最大限量",tp.Args.TradeLimits.LPOMaxAmount,"。 #FF0000");
+								Log(tp.Title+"交易对计划卖出数量超出交易限制，限价买入单最小限量",tp.Args.TradeLimits.LPOMinAmount,"最大限量",tp.Args.TradeLimits.LPOMaxAmount,"。 #FF0000");
 							}else{
 								var msg = tp.Name+"交易对应策略互动操作要求以";
-								if(values[2] == '-1'){
-									msg = "市价买入价值"+values[3]+"的币";
-								}else{
-									msg = values[2]+"的价格买入"+values[3]+"个币";
-								}
+                                if(Price == -1){
+                                    if(canpay < Amount){
+                                        Amount = canpay;
+                                    }
+                                    if(tp.Args.TradeLimits.MPOMaxBuyAmount < Amount){
+		                                Amount = tp.Args.TradeLimits.MPOMaxBuyAmount;
+		                            }
+									msg = "市价买入价值"+values[3]+"的币，最终核算下来花费"+Amount;
+                                }else{
+                                    if(canbuy < Amount){
+                                        Amount = canbuy;
+                                    }
+                                    if(tp.Args.TradeLimits.LPOMaxAmount < Amount){
+		                            	Amount = tp.Args.TradeLimits.LPOMaxAmount;
+		                            }
+									msg = values[2]+"的价格买入"+values[3]+"个币，最终核算下来买入"+Amount+"币";
+                                }
 								orderid = tp.Exchange.Buy(Price, Amount);
 								if(orderid){
 									Log(msg,"，订单提交成功，订单编号：",orderid);
@@ -834,20 +915,11 @@ function commandProc(){
 						}
 					}
 				}
-			}else if(cmds[0] == "ClearLog"){
-				var lognum = parseInt(values[1]);
-				if(!lognum || lognum < 0){
-					Log(tp.Name,"提供的保留记录条数非法值，拒绝操作！！！");
+			}else if(cmds[0] == "OperationLog"){
+				if(values[0].toUpperCase() == "ALL"){
+					Log("交易日志：",cmds[1]);
 				}else{
-					//清除日志
-					if(lognum){
-						LogReset(lognum);
-					}else{
-						LogReset();
-					}
-					//回收SQLite空间
-					LogVacuum();
-					Log("日志清除完成，请刷新页面。"," #0000FF")
+					Log(tp.Title,"交易日志：",cmds[1]);
 				}
 			}else if(cmds[0] == "Debug"){
 				if(values[0].toUpperCase() == "ALL"){
@@ -866,6 +938,53 @@ function commandProc(){
 			}
 		}else{
 			Log("提交的交互内容格式不正式，格式为_|_! #FF0000");
+		}
+	}
+}
+
+//策略交互条件操作处理函数
+function procConditionCmd(tp){
+	var ConditionCmds = _G("ConditionCmds");
+	if(!ConditionCmds) ConditionCmds = [];
+	if(ConditionCmds){
+		var needupdate = false;
+		var newcmds = [];
+		for(var i = 0;i<ConditionCmds.length;i++){
+			var docmd = false;
+			var cmds = ConditionCmds[i].split("|");
+			if(cmds && cmds.length>=4){
+				//判断交易对
+				if(cmds[3] == tp.Name){
+					//判断条件
+					var ticker = tp.Exchange.GetTicker();
+					var cds = cmds[1];
+					cds = cds.replace(new RegExp("Price","gm"),ticker.Last);
+					cds = cds.replace(new RegExp("CrossNum","gm"),DayLineCrossNum);
+					if(eval(cds)){
+						//还原命令
+						var cmd = "";
+						for(var l = 2; l<cmds.length; l++){
+							if(l === 2){
+								cmd = cmds[l]+":";
+							}else if(l === 3){
+								cmd += cmds[l];
+							}else{
+								cmd += "|" + cmds[l];
+							}
+						}
+						//执行命令
+						Log(tp.Title,"当前币价",cds,"符合条件，执行命令",cmd);
+						commandProc(cmd);
+						docmd = true;
+						needupdate = true;
+					}
+				}
+			}
+			if(!docmd) newcmds.push(ConditionCmds[i]);
+		}
+		//更新本地存储
+		if(needupdate){
+			_G("ConditionCmds", newcmds);
 		}
 	}
 }
@@ -1289,7 +1408,7 @@ function onTick(tp) {
 	//处理持仓价格变量
     var coinAmount = getAccountStocks(Account); //从帐户中获取当前持仓信息
 	if(coinAmount > tp.Args.TradeLimits.MPOMinSellAmount && avgPrice === 0){
-		Log(tp.Name+"交易对账户有持币，但是输入的均价为0，请确认参数！！ #FF0000");
+		Log(tp.Title+"交易对账户有持币，但是输入的均价为0，请确认参数！！ #FF0000");
 		return false;
 	}
 	var buyDynamicPoint = _G(tp.Name+"_BuyDynamicPoint");	
@@ -1374,7 +1493,7 @@ function onTick(tp) {
 			mustpay = tp.Args.TradeLimits.MPOMaxBuyAmount;
 		}
 		if(mustpay > tp.Args.TradeLimits.MPOMinBuyAmount){
-			Log(tp.Name+"交易对当前需要快速操作买入加仓到", buytofull.buyto,"，预计花费",mustpay);
+			Log(tp.Title+"交易对当前需要快速操作买入加仓到", buytofull.buyto,"，预计花费",mustpay);
 			isOperated = true;
 			orderid = tp.Exchange.Buy(-1,mustpay);
 			_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_BUY);
@@ -1391,7 +1510,7 @@ function onTick(tp) {
 				_G(tp.Name+"_OverFallCosts",costs);
 			}
 		}else{
-			Log(tp.Name+"交易对可支付金额不足于购买最小交易量，保仓操作完成。");
+			Log(tp.Title+"交易对可支付金额不足于购买最小交易量，保仓操作完成。");
 		}
 	}
 	if(!orderid){
@@ -1472,7 +1591,7 @@ function onTick(tp) {
 						if(coinAmount <= tp.Args.TradeLimits.MPOMinSellAmount || baseBuyPrice === 0){
 							if(debug) Log("程序运行之后或卖空之后第一次买入，以现价", Ticker.Sell, "，准备买入",opAmount,"个币。");
 						}else{
-							if(debug) Log("当前市价", Ticker.Sell, " < 买入点", parseFloat((baseBuyPrice * (1 - tp.Args.SellPoint - tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace)), "，准备买入",opAmount,"个币。");
+							if(debug) Log("当前市价", Ticker.Sell, " < 买入价位", parseFloat((baseBuyPrice * (1 - buyDynamicPoint - tp.Args.BuyFee)).toFixed(tp.Args.PriceDecimalPlace)), "，准备买入",opAmount,"个币。");
 						}
 						isOperated = true;
 						Log("当前基准买入价格", baseBuyPrice, "上次买入价格", lastBuyPrice, "动态买入点", buyDynamicPoint, "当前持仓总量", coinAmount);
@@ -1564,20 +1683,22 @@ function onTick(tp) {
 					//调整买入指导价，使其更合理
 					if(lastBuyPrice > 0 && lastSellPrice == 0 && coinAmount<=tp.Args.MinCoinLimit+tp.Args.TradeLimits.MPOMinSellAmount){
 			    		var loc = getInDayLineLocation(tp);
-			    		var guidebuyprice = (Ticker.Sell+avgPrice)/2;
 						var goodbuyprice = (loc.High+loc.Low)/2;
 						if(lastBuyPrice > goodbuyprice){
 							_G(tp.Name+"_LastBuyPrice", goodbuyprice);
 							_G(tp.Name+"_BuyGuidePrice",goodbuyprice);
 							Log("当前已经完成平仓，但最后的持仓均价过高，适当降底买入指导价以减小未来买入成本。从",lastBuyPrice,"调到",goodbuyprice);
 							//重新计算操作粒度
-							_G(tp.Name+"_OperateFineness", parseInt(Account.Balance/goodbuyprice/Transaction_Depth));
-						}else if(DayLineCrossNum > 0 && guidebuyprice > lastBuyPrice && guidebuyprice <= goodbuyprice){
-							_G(tp.Name+"_LastBuyPrice", guidebuyprice);
-							_G(tp.Name+"_BuyGuidePrice",guidebuyprice);
-							Log("当前已经完成平仓，但币价继续上升，适当调整买入指导价以防止指导价过低无法买入。从",lastBuyPrice,"调到",guidebuyprice);
-							//重新计算操作粒度
-							_G(tp.Name+"_OperateFineness", parseInt(Account.Balance/guidebuyprice/Transaction_Depth));
+							if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseFloat((Account.Balance/goodbuyprice/Transaction_Depth).toFixed(tp.Args.StockDecimalPlace)));
+						}else if(DayLineCrossNum > 0 && avgPrice < Ticker.Sell){
+							var guidebuyprice = (Ticker.Sell+avgPrice)/2;
+							if(guidebuyprice > lastBuyPrice && guidebuyprice <= goodbuyprice){
+								_G(tp.Name+"_LastBuyPrice", guidebuyprice);
+								_G(tp.Name+"_BuyGuidePrice",guidebuyprice);
+								Log("当前已经完成平仓，但币价继续上升，适当调整买入指导价以防止指导价过低无法买入。从",lastBuyPrice,"调到",guidebuyprice);
+								//重新计算操作粒度
+								if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseFloat((Account.Balance/guidebuyprice/Transaction_Depth).toFixed(tp.Args.StockDecimalPlace)));
+							}
 				    	}
 			    	}
 			    }
@@ -1652,11 +1773,11 @@ function showStatus(nowtp){
 		var accounttable2 = {};
 		accounttable2.type="table";
 		accounttable2.title = "状态信息";
-		accounttable2.cols = ['交易对','买入次数','卖出次数','总交易次数','累计收益','调试','短线交易','操作粒度','添加时间','最后更新'];
+		accounttable2.cols = ['交易对','买入次数','卖出次数','总交易次数','累计收益','调试','短线交易','操作粒度','买入指导价','添加时间','最后更新'];
 		rows = [];
 		for(var r=0;r<TradePairs.length;r++){
 			var tp = TradePairs[r];
-			rows.push([tp.Title, _G(tp.Name+"_BuyTimes"), _G(tp.Name+"_SellTimes"), (_G(tp.Name+"_BuyTimes")+_G(tp.Name+"_SellTimes")), _G(tp.Name+"_SubProfit"), _G(tp.Name+"_Debug"), ['关闭','打开','自动'][_G(tp.Name+"_Ssst_CanDo")], _G(tp.Name+"_OperateFineness"), _G(tp.Name+"_AddTime"), tp.LastUpdate]);
+			rows.push([tp.Title, _G(tp.Name+"_BuyTimes"), _G(tp.Name+"_SellTimes"), (_G(tp.Name+"_BuyTimes")+_G(tp.Name+"_SellTimes")), parseFloat(_G(tp.Name+"_SubProfit")).toFixed(tp.Args.PriceDecimalPlace), _G(tp.Name+"_Debug"), ['关闭','打开','自动'][_G(tp.Name+"_Ssst_CanDo")], _G(tp.Name+"_OperateFineness"), _G(tp.Name+"_BuyGuidePrice"), _G(tp.Name+"_AddTime"), tp.LastUpdate]);
 		}
 		accounttable2.rows = rows;
 		accounttables.push(accounttable2);
@@ -1685,6 +1806,27 @@ function showStatus(nowtp){
 		}
 		accounttable4.rows = rows;
 		accounttables.push(accounttable4);
+		var accounttable5 = {};
+		accounttable5.type="table";
+		accounttable5.title = "条件操作命令";
+		accounttable5.cols = ['编号','条件','命令','操作内容','提交时间'];
+		rows = [];
+		var ConditionCmds = _G("ConditionCmds");
+		if(!ConditionCmds) ConditionCmds = []; 
+		for(var r=0;r<ConditionCmds.length;r++){
+			var cmds = ConditionCmds[r].split("|");
+			var cmd = "";
+			for(var l=3;l<cmds.length;l++){
+				if(l == 3){
+					cmd = cmds[l];
+				}else{
+					cmd += "|"+cmds[l];
+				}
+			}
+			rows.push([cmds[0],cmds[1],cmds[2],cmd,_D(parseInt(cmds[0]))]);
+		}
+		accounttable5.rows = rows;
+		accounttables.push(accounttable5);
 		AccountTables = accounttables;
 	}else{
 		var accounttable1 = AccountTables[0];
@@ -1699,7 +1841,7 @@ function showStatus(nowtp){
 		var accounttable2 = AccountTables[1];
 		for(var r=0;r<accounttable2.rows.length;r++){
 			if(nowtp.Title == accounttable2.rows[r][0]){
-				accounttable2.rows[r] =[nowtp.Title, _G(nowtp.Name+"_BuyTimes"), _G(nowtp.Name+"_SellTimes"), (_G(nowtp.Name+"_BuyTimes")+_G(nowtp.Name+"_SellTimes")), _G(nowtp.Name+"_SubProfit"), _G(nowtp.Name+"_Debug"), ['关闭','打开','自动'][_G(nowtp.Name+"_Ssst_CanDo")], _G(nowtp.Name+"_OperateFineness"), _G(nowtp.Name+"_AddTime"), nowtp.LastUpdate];
+				accounttable2.rows[r] =[nowtp.Title, _G(nowtp.Name+"_BuyTimes"), _G(nowtp.Name+"_SellTimes"), (_G(nowtp.Name+"_BuyTimes")+_G(nowtp.Name+"_SellTimes")), parseFloat(_G(nowtp.Name+"_SubProfit")).toFixed(nowtp.Args.PriceDecimalPlace), _G(nowtp.Name+"_Debug"), ['关闭','打开','自动'][_G(nowtp.Name+"_Ssst_CanDo")], _G(nowtp.Name+"_OperateFineness"), _G(nowtp.Name+"_BuyGuidePrice"), _G(nowtp.Name+"_AddTime"), nowtp.LastUpdate];
 				break;
 			}	
 		}		
@@ -1735,6 +1877,23 @@ function showStatus(nowtp){
 			}
 		}
 		accounttable4.rows = newrows;
+		var accounttable5 = AccountTables[4];
+		newrows = [];
+		var ConditionCmds = _G("ConditionCmds");
+		if(!ConditionCmds) ConditionCmds = []; 
+		for(var r=0;r<ConditionCmds.length;r++){
+			var cmds = ConditionCmds[r].split("|");
+			var cmd = "";
+			for(var l=3;l<cmds.length;l++){
+				if(l == 3){
+					cmd = cmds[l];
+				}else{
+					cmd += "|"+cmds[l];
+				}
+			}
+			newrows.push([cmds[0],cmds[1],cmds[2],cmd,_D(parseInt(cmds[0]))]);
+		}
+		accounttable5.rows = newrows;
 	}
 	LogStatus("`" + JSON.stringify(ArgTables)+"`\n`" + JSON.stringify(AccountTables)+"`\n 策略累计收益："+ _G("TotalProfit")+ "\n 策略启动时间："+ StartTime + " 累计刷新次数："+ TickTimes + " 最后刷新时间："+ _D());	
 }
@@ -1807,7 +1966,7 @@ function checkMOOrder(tp){
 								//调整动态点数
 								_G(tp.Name+"_BuyDynamicPoint", tp.Args.BuyPoint);
 								//重新计算操作粒度
-								_G(tp.Name+"_OperateFineness", parseInt(GetAccount(tp).Balance/guideBuyPrice/Transaction_Depth));
+								if(exchanges.length == 1) _G(tp.Name+"_OperateFineness", parseFloat((GetAccount(tp).Balance/guideBuyPrice/Transaction_Depth).toFixed(tp.Args.StockDecimalPlace)));
 							}
 							
 							//列新交易次数
@@ -1960,10 +2119,12 @@ function main() {
 		if(TradePairs.length){
 			LastRecords = {"DayRecords":null,"HourRecords":null};
 			//策略交互处理函数
-			commandProc();
+			commandProc(GetCommand());
 			//获取当前交易对
 			var tp = TradePairs[NowTradePairIndex];
 			if(_G(tp.Name+"_Debug") == "1") Log("开始操作",tp.Title,"交易对...");
+			//处理条件交互操作
+			procConditionCmd(tp);
 			//设置小数位，第一个为价格小数位，第二个为数量小数位
 			tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.StockDecimalPlace);
 			//检测短线交易成功
