@@ -1,5 +1,5 @@
 /**************************************
-多交易对现货长线量化价值投资策略V2.6.0
+多交易对现货长线量化价值投资策略V2.6.1
 说明：
 1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
@@ -239,7 +239,7 @@ function parseArgsJson(json){
 //初始化运行参数
 function init(){
 	//设置排除错误日志，以免错误日志过多把机器人硬盘写爆
-	SetErrorFilter("429:|403:|502:|503:|Forbidden|tcp|character|unexpected|network|timeout|WSARecv|Connect|GetAddr|no such|reset|http|received|EOF|reused");
+	SetErrorFilter("500:|429:|403:|502:|503:|Forbidden|tcp|character|unexpected|network|timeout|WSARecv|Connect|GetAddr|no such|reset|http|received|EOF|reused");
 
 	Log("启动多交易对现货长线量化价值投资策略程序...");  
 
@@ -556,6 +556,7 @@ function changeDataForBuy(tp,account,order){
 				var profit = THRID_ORDERY_LEVELS[i];
 				newSsst.Level = profit;
 				newSsst.SellPrice = parseFloat((order.AvgPrice*(1+profit+tp.Args.BuyFee+tp.Args.SellFee)).toFixed(tp.Args.PriceDecimalPlace));
+				tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.StockDecimalPlace);
 				var orderid = tp.Exchange.Sell(newSsst.SellPrice, newSsst.Amount);
 				if(orderid){
 					//挂单成功
@@ -883,6 +884,7 @@ function commandProc(cmd){
 							}else if(Price != -1 && Amount < tp.Args.TradeLimits.LPOMinAmount && Amount > tp.Args.TradeLimits.LPOMaxAmount){
 								Log(tp.Title+"交易对计划卖出数量超出交易限制，限价卖出单最小限量",tp.Args.TradeLimits.LPOMinAmount,"最大限量",tp.Args.TradeLimits.LPOMaxAmount,"。 #FF0000");
 							}else{
+								tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.StockDecimalPlace);
 								orderid = tp.Exchange.Sell(Price, Amount);
 								if(orderid){
 									Log(tp.Title+"交易对应策略互动操作",values.length == 5 ? '强制' : '' ,"要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交成功，订单编号：",orderid);
@@ -917,6 +919,8 @@ function commandProc(cmd){
 		                                Amount = tp.Args.TradeLimits.MPOMaxBuyAmount;
 		                            }
 									msg = "市价买入价值"+values[3]+"的币，最终核算下来花费"+Amount;
+									//设置小数位，第一个为价格小数位，第二个为数量小数位
+									tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.PriceDecimalPlace);
                                 }else{
                                     if(canbuy < Amount){
                                         Amount = canbuy;
@@ -925,6 +929,8 @@ function commandProc(cmd){
 		                            	Amount = tp.Args.TradeLimits.LPOMaxAmount;
 		                            }
 									msg = values[2]+"的价格买入"+values[3]+"个币，最终核算下来买入"+Amount+"币";
+									//设置小数位，第一个为价格小数位，第二个为数量小数位
+									tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.StockDecimalPlace);
                                 }
 								orderid = tp.Exchange.Buy(Price, Amount);
 								if(orderid){
@@ -1055,6 +1061,7 @@ function checkSsstSellFinish(tp, cancelorder){
 			if(order.Status === ORDER_STATE_CLOSED && !cancelorder){
 				//再以挂单的买入价，再挂限价单买入。
 				Log(tp.Title,"交易对短线卖出成功，再次以价格",tp.Sssts[i].BuyPrice,"挂限价单买入",tp.Sssts[i].Amount,"个币");
+				tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.StockDecimalPlace);
 				var orderid = tp.Exchange.Buy(tp.Sssts[i].BuyPrice, tp.Sssts[i].Amount);
 				if(_G(tp.Name+"_Ssst_CanDo")){
 					if(orderid){
@@ -1126,7 +1133,7 @@ function checkSsstBuyFinish(tp){
 				var tradeTimes = _G(tp.Name+"_BuyTimes");
 				tradeTimes++;
 				_G(tp.Name+"_BuyTimes",tradeTimes);
-
+				tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.StockDecimalPlace);
 				var orderid = tp.Exchange.Sell(tp.Sssts[i].SellPrice, tp.Sssts[i].Amount);
 				if(orderid){
 					//挂单成功
@@ -1705,6 +1712,7 @@ function onTick(tp) {
 		if(mustpay > tp.Args.TradeLimits.MPOMinBuyAmount){
 			Log(tp.Title+"交易对当前需要快速操作买入加仓到", buytofull.buyto,"，预计花费",mustpay);
 			isOperated = true;
+			tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.PriceDecimalPlace);
 			orderid = tp.Exchange.Buy(-1,mustpay);
 			_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_BUY);
 			_G(tp.Name+"_BeforeBuyingStocks",coinAmount);
@@ -1762,6 +1770,7 @@ function onTick(tp) {
 						}
 						isOperated = true;
 						Log(tp.Title+"交易对超跌抄底买入了",cansell,"个币，抄底价格不具有持仓优势，当前回升超过8成，操作平仓");
+						tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.StockDecimalPlace);
 						orderid = tp.Exchange.Sell(-1, opAmount);
 						_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_SELL);
 					}else{
@@ -1806,6 +1815,7 @@ function onTick(tp) {
 						isOperated = true;
 						Log("当前基准买入价格", baseBuyPrice, "上次买入价格", lastBuyPrice, "动态买入点", buyDynamicPoint, "当前持仓总量", coinAmount);
 						Log(tp.Title+"交易对准备以",Ticker.Sell,"的价格买入",opAmount,"个币，当前账户余额为：",Account.Balance,"。本次下单金额",buyfee,"，本次预期买入数量",opAmount,"，预期成交价格",Ticker.Sell); 
+						tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.PriceDecimalPlace);
 						orderid = tp.Exchange.Buy(-1,buyfee);
 						_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_BUY);
 						_G(tp.Name+"_BeforeBuyingStocks",coinAmount);
@@ -1879,6 +1889,7 @@ function onTick(tp) {
 								if(debug) Log("当前市价", Ticker.Buy, " > 卖出点", parseFloat((baseSellPrice * (1 + tp.Args.SellPoint + tp.Args.SellFee)).toFixed(tp.Args.PriceDecimalPlace)), "，准备卖出",opAmount,"个币");
 								isOperated = true;
 								Log(tp.Title+"交易对准备以大约",Ticker.Buy,"的价格卖出",opAmount,"个币，当前持仓总量",coinAmount, "动态卖出点", sellDynamicPoint, "基准卖出价", baseSellPrice);
+								tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.StockDecimalPlace);
 								orderid = tp.Exchange.Sell(-1, opAmount);
 								_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_SELL);
 							}else{
@@ -2263,6 +2274,7 @@ function checkMOOrder(tp){
 										var profit = THRID_ORDERY_LEVELS[i];
 										newSsst.Level = profit;
 										newSsst.SellPrice = parseFloat((order.AvgPrice*(1+profit+tp.Args.BuyFee+tp.Args.SellFee)).toFixed(tp.Args.PriceDecimalPlace));
+										tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.StockDecimalPlace);
 										var orderid = tp.Exchange.Sell(newSsst.SellPrice, newSsst.Amount);
 										if(orderid){
 											//挂单成功
@@ -2350,8 +2362,6 @@ function main() {
 			if(_G(tp.Name+"_Debug") == "1") Log("开始操作",tp.Title,"交易对...");
 			//处理条件交互操作
 			procConditionCmd(tp);
-			//设置小数位，第一个为价格小数位，第二个为数量小数位
-			tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.StockDecimalPlace);
 			//检测短线交易成功
 			ssstHandle(tp);
 			//操作长线交易
