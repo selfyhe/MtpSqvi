@@ -1,5 +1,5 @@
 /**************************************
-多交易对现货长线量化价值投资策略V2.5.12
+多交易对现货长线量化价值投资策略V2.6.0
 说明：
 1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
@@ -105,6 +105,12 @@ function getExchange(name){
 		}
 	}
 	return e;
+}
+
+
+//获取当前时间戳
+function getTimestamp(){
+	return new Date().getTime();
 }
 
 //验证JSON内容格式
@@ -314,23 +320,25 @@ function GetAccount(tp) {
     return _C(tp.Exchange.GetAccount);
 }
 
-// 返回上穿的周期数. 正数为上穿周数, 负数表示下穿的周数, 0指当前价格一样
-function Cross(tp, klinetype, a, b) {
-	var MAType = 0;
-    var pfnMA = [TA.EMA, TA.MA, talib.KAMA][MAType];
-    var crossNum = 0;
-    var arr1 = [];
-    var arr2 = [];
-    if (Array.isArray(a)) {
-        arr1 = a;
-        arr2 = b;
-    } else {
-        var records = GetRecords(tp, klinetype);
-        arr1 = pfnMA(records, a);
-        arr2 = pfnMA(records, b);
+//给数组添加空无素到一定长度
+function appendLen(a, len){
+    var ret = a;
+    var addlen = len-a.length;
+    for(var i=0;i<addlen;i++){
+        ret.unshift(null);    
     }
+    return ret;
+}
+
+//取得两条线的交叉数
+function getCrossNum(arr1,arr2) {
+    var crossNum = 0;
     if (arr1.length !== arr2.length) {
-        throw "array length not equal";
+        if(arr1.length > arr2.length){
+			arr2 = appendLen(arr2,arr1.length);
+		}else{
+			arr1 = appendLen(arr1,arr2.length);
+		}
     }
     for (var i = arr1.length - 1; i >= 0; i--) {
         if (typeof(arr1[i]) !== 'number' || typeof(arr2[i]) !== 'number') {
@@ -351,6 +359,24 @@ function Cross(tp, klinetype, a, b) {
         }
     }
     return crossNum;
+}
+
+// 返回上穿的周期数. 正数为上穿周数, 负数表示下穿的周数, 0指当前价格一样
+function Cross(tp, klinetype, a, b) {
+	var MAType = 0;
+    var pfnMA = [TA.EMA, TA.MA, talib.KAMA][MAType];
+    var crossNum = 0;
+    var arr1 = [];
+    var arr2 = [];
+    if (Array.isArray(a)) {
+        arr1 = a;
+        arr2 = b;
+    } else {
+        var records = GetRecords(tp, klinetype);
+        arr1 = pfnMA(records, a);
+        arr2 = pfnMA(records, b);
+    }
+    return getCrossNum(arr1,arr2);
 }
 
 //从帐户中获取当前持仓信息
@@ -1164,6 +1190,190 @@ function getInDayLineLocation(tp){
 	return loc;
 }
 
+//删除数组的空元素
+function deleteNullEle(initArr){
+    var dealArr = [];
+    var initArrLen = initArr.length;
+    for(var i = 0,j = 0 ; i < initArrLen ; i++,j++){
+        if(initArr[i] === null || isNaN(initArr[i]) ){
+            j--;
+            continue;
+        }
+        dealArr[j] = initArr[i];
+    }
+    return dealArr;
+}
+
+//取得指定周期内的最高价
+function getHHV(records, n){
+	var max = 0;
+	var len = records.length>n?n:records.length;
+	for(var i=1;i<=len;i++){
+		var high = records[records.length - i].High;
+		if(high>max){
+			max = high;
+		}
+	}
+	return max;
+}
+
+//取得指定周期内的最低价
+function getLLV(records, n){
+	var min = 0;
+	var len = records.length>n?n:records.length;
+	for(var i=1;i<=len;i++){
+		var low = records[records.length - i].Low;
+		if(low<min || min == 0){
+			min = low;
+		}
+	}
+	return min;
+}
+
+//在数组中取得指定长度的元素组成新数组
+function getLenRecords(records, len){
+	var ret = [];
+	for(var i=0;i<len;i++){
+		if(records[i]) ret.push(records[i]);
+	}
+	return ret;
+}
+
+/**
+ * 威廉指标(WR)的自己实现
+ * talib出来的值有问题，一个是负数，一个是好像不对，自己在网上找的公式写出来
+ * WR1:=100*(HHV(HIGH,N1)-CLOSE)/(HHV(HIGH,N1)-LLV(LOW,N1));
+ * @param {} records
+ * @return []
+ */
+function getWR(records, n){
+	var wr = [];
+	for(var i=records.length;i>=1;i--){
+		var wrrecords = getLenRecords(records,i);
+		var hhv = getHHV(wrrecords,n);
+		var llv = getLLV(wrrecords,n);
+		var close = wrrecords[wrrecords.length-1].Close;
+		var wr1 = 100*(hhv-close)/(hhv-llv);
+		if(!wr1) break;
+		wr.unshift(wr1);
+	}
+	return wr;
+}
+
+
+/**
+ * 获取几个关键指标数据
+ * 1.TRIX线(14,7)的当前两个值：TRIX,MATRIX和两条线的交叉数
+ * 2.WR线（14,7）的当前两个值：WR1,WR2和两条线的交叉数
+ * 3.KDJ线(6,3,3)的三个值:K,D,J值和KD线交叉数.
+ * @param {} tp
+ * @param {} account
+ * @return {JSON}
+ */
+function getMainIndicators(records){
+	var ret = {
+		'TRIX':0,
+		'MATRIX':0,
+		'TrixCrossNum':0,
+		'WR1':0,
+		'WR2':0,
+		'WRCrossNum':0,
+		'K':0,
+		'D':0,
+		'J':0,
+		'KDJCrossNum':0
+	};
+    var kdj = TA.KDJ(records, 6, 3, 3);
+    var ks = kdj[0];
+    var ds = kdj[1];
+    var js = kdj[2];
+    ret.K = ks[ks.length - 1];
+    ret.D = ds[ds.length - 1];
+    ret.J = js[js.length - 1];
+    ret.KDJCrossNum = getCrossNum(ks,ds);
+    var trix = talib.TRIX(records, 14);
+    var trma = talib.MA(deleteNullEle(trix),7);
+    ret.TRIX = trix[trix.length -1];
+    ret.MATRIX = trma[trma.length -1];
+    ret.TrixCrossNum = getCrossNum(trix,trma);
+    var wr1 = getWR(records,14);
+    var wr2 = getWR(records,7);
+    ret.WR1 = wr1[wr1.length-1];
+    ret.WR2 = wr2[wr2.length-1];
+    ret.WRCrossNum = getCrossNum(wr1,wr2);
+    return ret;
+}
+
+/**
+ * 通过几个重要指标检测是否要操作止盈
+ * 日K线以8点开始：
+ * WR(14,7),TRIX(14,7),KDJ(6,3,3)
+ * 1.WR两个值都小于5，KDJ3个值平均大于80，EMA为正叉，TRIX交叉数为正，且两个值的差占高值比例不到10%，进行平仓操作
+ * 2.WR两个值都小于5，KDJ3个值平均大于80，EMA为正叉，TRIX交叉数为负，进行平仓操作
+ * 3.WR两个值都小于5，KDJ3个值平均大于80，EMA为正叉，TRIX交叉数为正，且两个值的差占高值比例大于10%，进行止盈操作
+ * 4.WR两个值平均小于10，KDJ3个值平均大于85，EMA为正叉，TRIX交叉数为正，TRIX两值均大于0小于2，进行止盈操作
+ * 5.EMA为正叉，TRIX死叉，且TRIX两个值都大于1，KDJ三线死叉，WR两个值均小于30，进行平仓操作
+ * 日K线以0点开始：
+ * WR(14,7),TRIX(14,7),KDJ(6,3,3)
+ * 1.WR两个值都小于10，KDJ3个值平均大于75，EMA为正叉，TRIX交叉数为正，且两个值的差占高值比例不到10%，进行平仓操作
+ * 2.WR两个值都小于10，KDJ3个值平均大于75，EMA为正叉，TRIX交叉数为负，进行平仓操作
+ * 3.WR两个值都小于10，KDJ3个值平均大于75，EMA为正叉，TRIX交叉数为正，且两个值的差占高值比例大于10%，进行止盈操作
+ * 4.WR两个值平均小于15，KDJ3个值平均大于80，EMA为正叉，TRIX交叉数为正，TRIX两值均大于0小于2，进行止盈操作
+ * 5.EMA为正叉，TRIX死叉，且TRIX两个值都大于1，KDJ三线死叉，WR两个值均小于35，进行平仓操作
+ * @param {} tp
+ * @param {} account
+ * @return int 0：不需要操作，1：操作止盈，2：操作平仓
+ */
+function checkNeedTargetProfit(records, emaCrossNum){
+	var ret = 0;
+	if(emaCrossNum>0){
+		var mi = getMainIndicators(records);
+		var avgkdj = (mi.K+mi.D+mi.J)/3;
+		var avgwr = (mi.WR1+mi.WR2)/2;
+		var hour = new Date(records[records.length-1].Time).getHours();
+		if(hour == 0){
+			if(mi.WR1<10 && mi.WR2<10 && mi.D>60 && avgkdj>75){
+				if(mi.TrixCrossNum>0){
+					var diffpc = (mi.TRIX-mi.MATRIX)/mi.TRIX;				
+					if(diffpc<0.1){
+						ret = 2;
+					}else{
+						ret = 1;
+					}
+				}else{
+					ret = 2;
+				}
+				if(ret==0 && avgwr<15 && avgkdj<80 && mi.TrixCrossNum>0 && mi.TRIX>0 && mi.MATRIX>0 && mi.TRIX<2 && mi.MATRIX<2){
+					ret = 1;
+				}
+			}
+			if(ret==0 && mi.TrixCrossNum<0 && mi.KDJCrossNum<0 && avgwr<35 && mi.TRIX>1 && mi.MATRIX>1){
+				ret = 2;
+			}
+		}else if(hour == 8){
+			if(mi.WR1<5 && mi.WR2<5 && mi.D>75 && avgkdj>80){
+				if(mi.TrixCrossNum>0){
+					var diffpc = (mi.TRIX-mi.MATRIX)/mi.TRIX;				
+					if(diffpc<0.1){
+						ret = 2;
+					}else{
+						ret = 1;
+					}
+				}else{
+					ret = 2;
+				}
+				if(ret==0 && avgwr<10 && avgkdj<85 && mi.TrixCrossNum>0 && mi.TRIX>0 && mi.MATRIX>0 && mi.TRIX<2 && mi.MATRIX<2){
+					ret = 1;
+				}
+			}
+			if(ret==0 && mi.TrixCrossNum<0 && mi.KDJCrossNum<0 && avgwr<30 && mi.TRIX>1 && mi.MATRIX>1){
+				ret = 2;
+			}
+		}
+	}
+	return ret;
+}
+
 /**
  * 检测当前是否可以在币价下跌时做短线交易
  * 0.短线操作开关处于手动关闭状态,不做
@@ -1524,7 +1734,7 @@ function onTick(tp) {
 			var cansell = coinAmount - overfallbefore;
 			if(cansell > tp.Args.TradeLimits.MPOMinSellAmount){
 				if(debug) Log(tp.Title+"交易对发生了超跌抄底，抄底买入数量", cansell);
-				var now = new Date().getTime();
+				var now = getTimestamp();
 				if(coinAmount > overfallbefore && Ticker.Buy/avgPrice > 1.02 && (lastrecord.High/lastrecord.Low > 1.15 && (lastrecord.Close - lastrecord.Low)/(lastrecord.High - lastrecord.Low) > 0.8 || secondrecord.High/secondrecord.Low > 1.15 && (lastrecord.Close - secondrecord.Low)/(secondrecord.High - secondrecord.Low) > 0.8 || now > _G(tp.Name+"_OverFallLastBuy")+3600000)){
 					//判断回升之后要不要平仓
 					var exit = true;
@@ -1605,65 +1815,80 @@ function onTick(tp) {
 				}
 		    }
 		    if(!orderid){
-				if (coinAmount > tp.Args.MinCoinLimit+tp.Args.TradeLimits.MPOMinSellAmount && ((DayLineCrossNum > 0 || overFallBuy) && Ticker.Buy > _G(tp.Name+"_BuyGuidePrice") && ((Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee) || !overFallBuy && Ticker.Buy < historyHighPoint*0.85 && historyHighPoint/avgPrice > 1.60)) || viaGoldArea && (DayLineCrossNum === -1 || DayLineCrossNum === -2) && Ticker.Buy > avgPrice)) {
-			    	var dosell = true;
-			    	if(DayLineCrossNum < 0){
-			    		Log("进入了死叉，对现有获利盘持仓进行平仓。");
-			    	}else{
-				    	if(Ticker.Buy < historyHighPoint*0.85){
-				    		var handledRetreat = _G(tp.Name+"_HandledRetreat") ? _G(tp.Name+"_HandledRetreat") : 0;
-				    		if(handledRetreat > 0){
-				    			//直接不做
-				    			dosell = false;
-				    		}else{
-				    			//判断是否发生了短时超跌
-					    		var hourrecords = GetRecords(tp, PERIOD_H1);
-								var lastrecord = hourrecords[hourrecords.length -1];
-								if(lastrecord.Open/lastrecord.Close > 1.15){
-									sellDynamicPoint = sellDynamicPoint/4;
-									if(sellDynamicPoint < 0.05) sellDynamicPoint = 0.05;
-									_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint);				    			
-									if(Ticker.Buy < lastSellPrice) _G(tp.Name+"_LastSellPrice", Ticker.Buy);
-									Log("在超过60%浮盈后币价出现了一小时内超过15%的回撤，进入超跌行情，暂时仅下调卖出指导价和动态卖出点不卖出");
-									dosell = false;
-									//标识已经处理超跌回撤
-									_G(tp.Name+"_HandledRetreat", 2);
-								}else{
-					    			//还没有处理，开始开仓止盈
-					    			Log("在超过60%浮盈后币价出现了超过15%的回撤,操作开仓止盈。");
-					    			if((coinAmount-tp.Args.MinCoinLimit) <= _G(tp.Name+"_lastBuycoinAmount")*0.4){
-						    			sellDynamicPoint = sellDynamicPoint/2;
-						    			if(sellDynamicPoint < 0.05) sellDynamicPoint = 0.05;
-						    			_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint);
-						    			Log("在超过60%浮盈后币价出现了超过15%的回撤，减仓到4成并调整动态卖出点减半，期望余下的40%的仓位还可以卖个好价");
+		    	if(coinAmount > tp.Args.MinCoinLimit+tp.Args.TradeLimits.MPOMinSellAmount && Ticker.Buy > avgPrice){
+			    	//检测技术指标看是否需要技术性止盈或平仓
+			    	var ntp = checkNeedTargetProfit(GetRecords(tp, PERIOD_D1), DayLineCrossNum);
+			    	if(ntp == 1){
+			    		//技术性止盈1个小时操作一次
+			    		var now = getTimestamp();
+			    		var lasttp = _G(tp.Name+"_LastTP");
+			    		if(lasttp && now < (lasttp + 21600000)){
+			    			ntp = 0;
+			    			Log("上次技术指标止盈操作还没有6个小时，本次暂不操作");
+			    		}
+			    	}
+					if((DayLineCrossNum > 0 || overFallBuy) && Ticker.Buy > _G(tp.Name+"_BuyGuidePrice") && (ntp || (Ticker.Buy > baseSellPrice * (1 + sellDynamicPoint + tp.Args.SellFee))) || viaGoldArea && (DayLineCrossNum === -1 || DayLineCrossNum === -2)) {
+				    	var dosell = true;
+				    	if(DayLineCrossNum < 0){
+				    		Log("进入了死叉，对现有获利盘持仓进行平仓。");
+				    	}else{
+					    	if(Ticker.Buy < historyHighPoint*0.85){
+					    		var handledRetreat = _G(tp.Name+"_HandledRetreat") ? _G(tp.Name+"_HandledRetreat") : 0;
+					    		if(handledRetreat > 0){
+					    			//直接不做
+					    			dosell = false;
+					    		}else{
+					    			//判断是否发生了短时超跌
+						    		var hourrecords = GetRecords(tp, PERIOD_H1);
+									var lastrecord = hourrecords[hourrecords.length -1];
+									if(lastrecord.Open/lastrecord.Close > 1.15){
+										sellDynamicPoint = sellDynamicPoint/4;
+										if(sellDynamicPoint < 0.05) sellDynamicPoint = 0.05;
+										_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint);				    			
+										if(Ticker.Buy < lastSellPrice) _G(tp.Name+"_LastSellPrice", Ticker.Buy);
+										Log("在超过60%浮盈后币价出现了一小时内超过15%的回撤，进入超跌行情，暂时仅下调卖出指导价和动态卖出点不卖出");
 										dosell = false;
-										//标识已经处理非超跌回撤
-										_G(tp.Name+"_HandledRetreat", 1);
-						    		}else{
-										//标识正在处理非超跌回撤
-										_G(tp.Name+"_HandledRetreat", -1);
-						    		}
-								}
-				    		}
+										//标识已经处理超跌回撤
+										_G(tp.Name+"_HandledRetreat", 2);
+									}else{
+						    			//还没有处理，开始开仓止盈
+						    			Log("在超过60%浮盈后币价出现了超过15%的回撤,操作开仓止盈。");
+						    			if((coinAmount-tp.Args.MinCoinLimit) <= _G(tp.Name+"_lastBuycoinAmount")*0.4){
+							    			sellDynamicPoint = sellDynamicPoint/2;
+							    			if(sellDynamicPoint < 0.05) sellDynamicPoint = 0.05;
+							    			_G(tp.Name+"_SellDynamicPoint", sellDynamicPoint);
+							    			Log("在超过60%浮盈后币价出现了超过15%的回撤，减仓到4成并调整动态卖出点减半，期望余下的40%的仓位还可以卖个好价");
+											dosell = false;
+											//标识已经处理非超跌回撤
+											_G(tp.Name+"_HandledRetreat", 1);
+							    		}else{
+											//标识正在处理非超跌回撤
+											_G(tp.Name+"_HandledRetreat", -1);
+							    		}
+									}
+					    		}
+					    	}
 				    	}
-			    	}
-			    	if(dosell){
-						var operatefineness = sellDynamicPoint == tp.Args.SellPoint ? operateFineness : operateFineness*(1+(Ticker.Buy-avgPrice)/avgPrice);
-						opAmount = (coinAmount - tp.Args.MinCoinLimit) > operatefineness? operatefineness : _N((coinAmount - tp.Args.MinCoinLimit),tp.Args.StockDecimalPlace);
-						if(tp.Args.TradeLimits.MPOMaxSellAmount < opAmount){
-							opAmount = tp.Args.TradeLimits.MPOMaxSellAmount;
-						}
-						if(coinAmount > tp.Args.MinCoinLimit && opAmount > tp.Args.TradeLimits.MPOMinSellAmount){
-							if(debug) Log("当前市价", Ticker.Buy, " > 卖出点", parseFloat((baseSellPrice * (1 + tp.Args.SellPoint + tp.Args.SellFee)).toFixed(tp.Args.PriceDecimalPlace)), "，准备卖出",opAmount,"个币");
-							isOperated = true;
-							Log(tp.Title+"交易对准备以大约",Ticker.Buy,"的价格卖出",opAmount,"个币，当前持仓总量",coinAmount, "动态卖出点", sellDynamicPoint, "基准卖出价", baseSellPrice);
-							orderid = tp.Exchange.Sell(-1, opAmount);
-							_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_SELL);
-						}else{
-							if(debug) Log("当前持仓数量小于最小持仓量", tp.Args.MinCoinLimit, "，没有币可卖，看机会再买入。");
-						}
-			    	}
-			    }
+				    	if(dosell){
+							var operatefineness = sellDynamicPoint == tp.Args.SellPoint ? operateFineness : operateFineness*(1+(Ticker.Buy-avgPrice)/avgPrice);
+							opAmount = (coinAmount - tp.Args.MinCoinLimit) > operatefineness? operatefineness : _N((coinAmount - tp.Args.MinCoinLimit),tp.Args.StockDecimalPlace);
+							if(tp.Args.TradeLimits.MPOMaxSellAmount < opAmount){
+								opAmount = tp.Args.TradeLimits.MPOMaxSellAmount;
+							}
+							if(coinAmount > tp.Args.MinCoinLimit && opAmount > tp.Args.TradeLimits.MPOMinSellAmount){
+								if(debug) Log("当前市价", Ticker.Buy, " > 卖出点", parseFloat((baseSellPrice * (1 + tp.Args.SellPoint + tp.Args.SellFee)).toFixed(tp.Args.PriceDecimalPlace)), "，准备卖出",opAmount,"个币");
+								isOperated = true;
+								Log(tp.Title+"交易对准备以大约",Ticker.Buy,"的价格卖出",opAmount,"个币，当前持仓总量",coinAmount, "动态卖出点", sellDynamicPoint, "基准卖出价", baseSellPrice);
+								orderid = tp.Exchange.Sell(-1, opAmount);
+								_G(tp.Name+"_OperatingStatus",OPERATE_STATUS_SELL);
+							}else{
+								if(debug) Log("当前持仓数量小于最小持仓量", tp.Args.MinCoinLimit, "，没有币可卖，看机会再买入。");
+							}
+				    	}
+				    	//更新技术指标止盈时间点
+				    	if(orderid && ntp == 1) _G(tp.Name+"_LastTP", getTimestamp());
+				    }
+		    	}
 			    if(!orderid){
 					if (DayLineCrossNum < 0 ){
 						if(debug) Log("价格没有下跌到买入点，继续观察行情...");
