@@ -1,5 +1,5 @@
 /**************************************
-多交易对现货长线量化价值投资策略V2.6.1
+多交易对现货长线量化价值投资策略V2.6.2
 说明：
 1.本策略使用与行情无关，只与价格相关的设计思想，脱离技术指标不作任何预测，实现长线价值投资。
 2.本策略重在稳定长期盈利，保持胜率100%是原则，为投资带来稳定的较高的回报。
@@ -476,6 +476,7 @@ function checkSellFinish(tp,account){
 				Log(tp.Title,"交易对订单",lastOrderId,"未有成交!卖出价格：",order.Price,"，当前价：",GetTicker(tp).Last,"，价格差：",_N(order.Price - GetTicker(tp).Last, tp.Args.PriceDecimalPlace));
 			}else{
 				Log(tp.Title,"交易对市价卖出订单",lastOrderId,"未有成交!");
+				ret = false;
 			}
 		}
 		//撤消没有完成的限价订单
@@ -657,6 +658,7 @@ function changeDataForBuy(tp,account,order){
 
 //检测买入订单是否成功
 function checkBuyFinish(tp,account){
+	var ret = true;
 	var lastOrderId = _G(tp.Name+"_LastOrderId");
 	var order = tp.Exchange.GetOrder(lastOrderId);
 	if(order.Status === ORDER_STATE_CLOSED ){
@@ -671,6 +673,7 @@ function checkBuyFinish(tp,account){
 				Log(tp.Title,"交易对买入订单",lastOrderId,"未有成交!订单买入价格：",order.Price,"，当前卖一价：",GetTicker(tp).Sell,"，价格差：",_N(order.Price - GetTicker(tp).Sell, tp.Args.PriceDecimalPlace));
 			}else{
 				Log(tp.Title,"交易对市价买入订单",lastOrderId,"未有成交!");
+				ret = false;
 			}
 		}
 		//撤消没有完成的限价订单
@@ -680,6 +683,7 @@ function checkBuyFinish(tp,account){
 			Sleep(1300);
 		}
 	}
+	return ret;
 }
 
 //取得指定交易对
@@ -1601,15 +1605,20 @@ function onTick(tp) {
 	
 	//检测上一个订单，成功就改状态，不成功就取消重新发
 	if(_G(tp.Name+"_LastOrderId") && _G(tp.Name+"_OperatingStatus") != OPERATE_STATUS_NONE){
+		var ret = false;
 		if(_G(tp.Name+"_OperatingStatus") > OPERATE_STATUS_BUY){
-			checkSellFinish(tp,Account);
+			ret = checkSellFinish(tp,Account);
 		}else{
-			checkBuyFinish(tp,Account);
+			ret = checkBuyFinish(tp,Account);
 		}
-		//刚才上一次订单ID清空，不再重复判断
-		_G(tp.Name+"_LastOrderId",0);
-		//重置操作状态
-		_G(tp.Name+"_OperatingStatus", OPERATE_STATUS_NONE);
+		if(ret){
+			//刚才上一次订单ID清空，不再重复判断
+			_G(tp.Name+"_LastOrderId",0);
+			//重置操作状态
+			_G(tp.Name+"_OperatingStatus", OPERATE_STATUS_NONE);
+		}else{
+			return;
+		}
 	}
 
     //定义并初始化其他变量
