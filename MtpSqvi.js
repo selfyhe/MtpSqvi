@@ -1719,6 +1719,7 @@ function onTick(tp) {
 			mustpay = tp.Args.TradeLimits.MPOMaxBuyAmount;
 		}
 		if(mustpay > tp.Args.TradeLimits.MPOMinBuyAmount){
+			mustpay = _N(mustpay, tp.Args.PriceDecimalPlace);
 			Log(tp.Title+"交易对当前需要快速操作买入加仓到", buytofull.buyto,"，预计花费",mustpay);
 			isOperated = true;
 			tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.PriceDecimalPlace);
@@ -1810,7 +1811,7 @@ function onTick(tp) {
 					var canbuy = canpay/Ticker.Sell;
 					var operatefineness = buyDynamicPoint == tp.Args.BuyPoint ? operateFineness : operateFineness*(1+(avgPrice-Ticker.Sell)/avgPrice*buyDynamicPoint*100);
 					opAmount = canbuy > operatefineness? operatefineness : canbuy;
-					var buyfee = opAmount*Ticker.Sell;
+					var buyfee = _N(opAmount*Ticker.Sell, tp.Args.PriceDecimalPlace);
 					if(tp.Args.TradeLimits.MPOMaxBuyAmount < buyfee){
 						buyfee = tp.Args.TradeLimits.MPOMaxBuyAmount;
 						opAmount = buyfee/Ticker.Sell;
