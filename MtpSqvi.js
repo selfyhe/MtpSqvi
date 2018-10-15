@@ -889,6 +889,7 @@ function commandProc(cmd){
 								Log(tp.Title+"交易对计划卖出数量超出交易限制，限价卖出单最小限量",tp.Args.TradeLimits.LPOMinAmount,"最大限量",tp.Args.TradeLimits.LPOMaxAmount,"。 #FF0000");
 							}else{
 								tp.Exchange.SetPrecision(tp.Args.PriceDecimalPlace, tp.Args.StockDecimalPlace);
+								if(Price == -1) Amount=_N(Amount,tp.Args.PriceDecimalPlace);
 								orderid = tp.Exchange.Sell(Price, Amount);
 								if(orderid){
 									Log(tp.Title+"交易对应策略互动操作",values.length == 5 ? '强制' : '' ,"要求以",values[2] == '-1' ? '市价' : values[2]+'的价格',"卖出",values[3],"个币，订单提交成功，订单编号：",orderid);
