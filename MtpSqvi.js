@@ -1132,6 +1132,7 @@ function checkSsstBuyFinish(tp){
 	for(var i=0;i<tp.Sssts.length;i++){
 		if(tp.Sssts[i].Type == 2){
 			var order = tp.Exchange.GetOrder(tp.Sssts[i].OrderID);
+			if(!order) continue;
 			if(order.Status === ORDER_STATE_CLOSED){
 				Log(tp.Title,"交易对再次限价挂单买入交易已经成功，订单编号",tp.Sssts[i].OrderID);
 				//列新交易次数
