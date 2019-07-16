@@ -1,27 +1,31 @@
-ï»¿ä¸Šæ¬¡ä¿®æ”¹æ­»å‰æœ‰è·åˆ©å°±å¹³ä»“ï¼ŒåŒæ—¶ä½ä½ä¿ä»“æˆ–é‡‘å‰ä¿ä»“éƒ½å¿…é¡»å½“å‰ä»·æ ¼ä½äºä¹°å…¥æŒ‡å¯¼ä»·
+±¾´ÎĞŞ¸Ä¼ÓÈë¼¼ÊõÖ¸±êÅĞ¶Ï¶Ô»ñÀûÅÌ½øĞĞÖ¹Ó¯Æ½²Ö
 --------------------------------------------
-ä¿®æ”¹åçš„æµ‹è¯•ç»“æœï¼ˆä¸æ“ä½œçŸ­çº¿ï¼‰ï¼š
+ĞŞ¸ÄÇ°µÄ²âÊÔ½á¹û£¨²»²Ù×÷¶ÌÏß£©£º
 2017-12-01 00:00:00 - 2018-07-24 10:00:00 BCH_BTC 50 0 
 [{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":0,"OperateFineness":15,"NowCoinPrice":0.14,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.23,"HistoryLowPoint":0.05,"Debug":0,"TradeLimits":{"LPOMinAmount":0.001,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.001,"MPOMaxSellAmount":10000}}]
-ä¹°å…¥31æ¬¡ï¼Œå–å‡º44ï¼Œç›ˆåˆ©103.31855182ï¼Œç›ˆåˆ©ç‡ï¼š206.63%ï¼Œæ˜¾ç¤ºç›ˆåˆ©ï¼š106.17717099999999
+ÂòÈë31´Î£¬Âô³ö48£¬Ó¯Àû103.48555476£¬Ó¯ÀûÂÊ£º206.97%£¬ÏÔÊ¾Ó¯Àû£º105.87500400000002
 2017-10-01 00:00:00 - 2018-07-24 10:00:00 LTC_BTC 19.7863 0 
 [{"ExchangeName":"Huobi","TradePairName":"LTC_BTC","MaxCoinLimit":50000,"MinCoinLimit":0,"OperateFineness":80,"NowCoinPrice":0.0123,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.0176,"HistoryLowPoint":0.007,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-ä¹°å…¥33æ¬¡ï¼Œå–å‡º43ï¼Œç›ˆåˆ©34.27045367ï¼Œç›ˆåˆ©ç‡ï¼š173.20%ï¼Œæ˜¾ç¤ºç›ˆåˆ©ï¼š35.995779
+ÂòÈë33´Î£¬Âô³ö44£¬Ó¯Àû30.20791359£¬Ó¯ÀûÂÊ£º152.67%£¬ÏÔÊ¾Ó¯Àû£º31.536327000000004
 2017-10-01 00:00:00 - 2018-07-24 10:00:00 ETH_BTC 19.7863 0 
 [{"ExchangeName":"Huobi","TradePairName":"ETH_BTC","MaxCoinLimit":30000,"MinCoinLimit":0,"OperateFineness":12,"NowCoinPrice":0.08,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.15,"HistoryLowPoint":0.035,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-ä¹°å…¥36æ¬¡ï¼Œå–å‡º46ï¼Œç›ˆåˆ©45.20610716ï¼Œç›ˆåˆ©ç‡ï¼š228.47%ï¼Œæ˜¾ç¤ºç›ˆåˆ©ï¼š45.97402
+ÂòÈë36´Î£¬Âô³ö50£¬Ó¯Àû45.25692458£¬Ó¯ÀûÂÊ£º228.73%£¬ÏÔÊ¾Ó¯Àû£º45.900892999999996
 2017-10-01 00:00:00 - 2018-07-24 10:00:00 ETC_BTC 19.7863 0 
 [{"ExchangeName":"Huobi","TradePairName":"ETC_BTC","MaxCoinLimit":30000,"MinCoinLimit":0,"OperateFineness":350,"NowCoinPrice":0.003,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.0083,"HistoryLowPoint":0.001,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-ä¹°å…¥53æ¬¡ï¼Œå–å‡º103ï¼Œç›ˆåˆ©28.68277827ï¼Œç›ˆåˆ©ç‡ï¼š144.96%ï¼Œæ˜¾ç¤ºç›ˆåˆ©ï¼š28.774204000000008
-
-æœ¬æ¬¡ä¿®æ”¹ä¹°å…¥çš„é™åˆ¶é—®é¢˜å’Œæ¨¡å—ä¹‹é—´çš„å…³ç³»
+ÂòÈë54´Î£¬Âô³ö124£¬Ó¯Àû28.50768047£¬Ó¯ÀûÂÊ£º144.08%£¬ÏÔÊ¾Ó¯Àû£º28.57461900000003
 --------------------------------------------
-ä¿®æ”¹åæ²¡æœ‰åšçŸ­çº¿çš„æµ‹è¯•ç»“æœä¸ä¸Šé¢çš„å®Œå…¨ä¸€è‡´
-
-ETC_BTCåšçŸ­çº¿çš„ç»“æœï¼š
+ĞŞ¸ÄºóµÄ²âÊÔ½á¹û£¨²»²Ù×÷¶ÌÏß£©£º
+2017-12-01 00:00:00 - 2018-07-24 10:00:00 BCH_BTC 50 0 
+[{"ExchangeName":"Huobi","TradePairName":"BCH_BTC","MaxCoinLimit":50000,"MinCoinLimit":0,"OperateFineness":15,"NowCoinPrice":0.14,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.23,"HistoryLowPoint":0.05,"Debug":0,"TradeLimits":{"LPOMinAmount":0.001,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.001,"MPOMaxSellAmount":10000}}]
+ÂòÈë35´Î£¬Âô³ö42£¬Ó¯Àû178.4414877£¬Ó¯ÀûÂÊ£º356.88%£¬ÏÔÊ¾Ó¯Àû£º183.390359
+2017-10-01 00:00:00 - 2018-07-24 10:00:00 LTC_BTC 19.7863 0 
+[{"ExchangeName":"Huobi","TradePairName":"LTC_BTC","MaxCoinLimit":50000,"MinCoinLimit":0,"OperateFineness":80,"NowCoinPrice":0.0123,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.0176,"HistoryLowPoint":0.007,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
+ÂòÈë33´Î£¬Âô³ö47£¬Ó¯Àû38.01718467£¬Ó¯ÀûÂÊ£º192.14%£¬ÏÔÊ¾Ó¯Àû£º39.549417000000005
+2017-10-01 00:00:00 - 2018-07-24 10:00:00 ETH_BTC 19.7863 0 
+[{"ExchangeName":"Huobi","TradePairName":"ETH_BTC","MaxCoinLimit":30000,"MinCoinLimit":0,"OperateFineness":12,"NowCoinPrice":0.08,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.15,"HistoryLowPoint":0.035,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
+ÂòÈë36´Î£¬Âô³ö51£¬Ó¯Àû49.31330002£¬Ó¯ÀûÂÊ£º249.23%£¬ÏÔÊ¾Ó¯Àû£º50.089961
 2017-10-01 00:00:00 - 2018-07-24 10:00:00 ETC_BTC 19.7863 0 
 [{"ExchangeName":"Huobi","TradePairName":"ETC_BTC","MaxCoinLimit":30000,"MinCoinLimit":0,"OperateFineness":350,"NowCoinPrice":0.003,"BuyFee":0.002,"SellFee":0.002,"PriceDecimalPlace":6,"StockDecimalPlace":4,"BuyPoint":0.05,"AddPointInBuy":0.008,"SellPoint":0.2,"AddPointInSell":-0.005,"CanKeepPosition":1,"HistoryHighPoint":0.0083,"HistoryLowPoint":0.001,"Debug":0,"TradeLimits":{"LPOMinAmount":0.01,"LPOMaxAmount":10000,"MPOMinBuyAmount":0.0001,"MPOMaxBuyAmount":1000,"MPOMinSellAmount":0.01,"MPOMaxSellAmount":10000}}]
-ä¹°å…¥145æ¬¡ï¼Œå–å‡º174ï¼Œç›ˆåˆ©32.58027705ï¼Œç›ˆåˆ©ç‡ï¼š164.64%ï¼Œæ˜¾ç¤ºç›ˆåˆ©ï¼š31.881365000000002
+ÂòÈë57´Î£¬Âô³ö112£¬Ó¯Àû49.47751045£¬Ó¯ÀûÂÊ£º250.06%£¬ÏÔÊ¾Ó¯Àû£º49.58520699999999
 
-æµ‹è¯•ç»“è®ºï¼š
-ETC_BTCäº¤æ˜“å¯¹ä¹‹æ‰€ä»¥åœ¨å…¶ä»–äº¤æ˜“å¯¹åšçŸ­çº¿éƒ½æ”¶ç›Šä¸‹é™çš„æƒ…å†µä¸‹ï¼Œè€Œå®ƒçš„æ”¶ç›Šå´å¤§å¢ï¼Œä¸»è¦æ˜¯å› ä¸ºè¿™ä¸ªäº¤æ˜“å¯¹çš„æ³¢åŠ¨æ¯”è¾ƒæ²¡æœ‰è§„å¾‹ï¼Œæ‰€ä»¥é‡åˆ°è¿™æ ·çš„è¡Œæƒ…å¯ä»¥åšçŸ­çº¿ã€‚
+²âÊÔ½áÂÛ£º±¾´Î°æ±¾Éı½á´ó·ù¶ÈÌáÉıÁËÊÕÒæË®Æ½£¬ËµÃ÷È¡ÏûÁË¸¡Ó¯»Ø³·15%Âô³ö£¬È»ºóÔö¼ÓÁË¼¼ÊõÖ¹Ó¯¼°Æ½²Ö¿ÉÒÔºÜÓĞĞ§µØ±£ÁôÊ¤Àû¹ûÊµ
